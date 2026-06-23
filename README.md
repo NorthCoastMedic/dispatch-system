@@ -2,3 +2,9 @@
 
 ## 项目简介
 本系统是一套针对赛事与急救场景的实时后端支持系统，通过 MQTT 协议进行终端设备数据接入，结合高德地图坐标系进行实时位置处理，并提供包括设备监控、赛道轨迹计算、活动节点提醒在内的计算机辅助调度系统
+
+## 项目贡献者（Contributors）
+
+<a href="https://github.com/NorthCoastMedic/dispatch-system/graphs/contributors" target="_blank">
+  <img src="https://contrib.rocks/image?repo=NorthCoastMedic/dispatch-system"  alt="项目贡献者"/>
+</a>
