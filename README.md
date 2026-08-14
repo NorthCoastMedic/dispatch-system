@@ -92,6 +92,16 @@ flowchart LR
 | MQTT Broker（如 Mosquitto、EMQX等） | RTLS / WBGT 实时数据 |
 
 
+## 许可
+
+Copyright © 2026 pqzou
+
+本仓库按 [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) 授权，全文见 [`LICENSE`](./LICENSE)。
+
+非商业用途下可以免费使用、修改与分发，须保留许可与署名。修改版须标明基于本项目，不得删除或伪造署名，也不得声称本软件由你独立开发。商业用途不允许。
+
+欢迎通过 Issue 反馈问题，也欢迎 Pull Request。贡献者对其提交并被合并的代码保留著作权，合并不发生权利转让；该部分随本仓库按同一许可向公众提供，贡献者将出现在 Git 提交记录与贡献者列表中。
+
 ## 项目贡献者（Contributors）
 
 <a href="https://github.com/NorthCoastMedic/dispatch-system/graphs/contributors" target="_blank">
