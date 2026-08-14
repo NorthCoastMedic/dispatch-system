@@ -23,6 +23,7 @@ const CHART_SCOPE_ORDER = ['active', 'completed', 'all'];
 const CHART_SCOPE_LABEL = { active: '进行中', completed: '已完成', all: '全部' };
 
 document.addEventListener('DOMContentLoaded', async () => {
+    initDisplayClock();
     const res = await fetch('/api/me');
     const data = await res.json();
     if (!data.success || data.user.role !== 'admin') {
@@ -32,13 +33,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentUser = data.user;
 
     initHeader(currentUser);
-    initDisplayClock();
     initEventCharts();
     await loadDisplaySettings();
     await loadAgencySettings();
 
     socket = io(window.Platform ? window.Platform.ioOptions() : { path: '/rms/socket.io' });
-    if (typeof initEmergencyListener === 'function') initEmergencyListener(socket);
 
     socket.on('data_updated', (payload) => {
         allUsers = payload.users || [];
@@ -62,7 +61,29 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
-/** 大屏时钟：硬朗等宽数字，避免 toLocaleString 圆润观感 */
+function initHeader(currentUser) {
+    const nameBtn = document.getElementById('username-btn');
+    const dropdown = document.getElementById('user-dropdown');
+    if (nameBtn && dropdown && currentUser) {
+        const nameEl = document.getElementById('header-username');
+        if (nameEl) nameEl.innerText = currentUser.username;
+        nameBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+        });
+        document.addEventListener('click', () => dropdown.classList.add('hidden'));
+    }
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            const res = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+            const data = await res.json();
+            if (data.success) window.location.href = '/login.php';
+        });
+    }
+}
+
 function initDisplayClock() {
     const oldClock = document.getElementById('header-clock');
     if (!oldClock || !oldClock.parentNode) return;

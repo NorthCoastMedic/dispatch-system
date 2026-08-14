@@ -6,8 +6,10 @@ let agencyFilter = '';
 let agencyListFromSettings = [];
 let latestDashboardUsers = [];
 let latestDashboardEvents = [];
+let slaDashboardReady = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    loadSlaAckState();
     const res = await fetch('/api/me');
     const data = await res.json();
     if (!data.success || data.user.role !== 'admin') {
@@ -25,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     socket.on('data_updated', (payload) => {
         allUsers = payload.users || [];
         allEvents = payload.events || [];
+        slaDashboardReady = true;
         renderDashboard(payload.users, payload.events);
         if (openEventDetailId && !eventDrawerUnlocked) refreshOpenEventDrawer();
         stopSlaIfArrivedOnScene();
@@ -762,6 +765,36 @@ const slaTimeoutLastAckAt = new Map();
 /** 已有人到达现场，永久停止该事件 SLA（至结案清理） */
 const slaStoppedByArrive = new Set();
 let slaQueue = [];
+const SLA_ACK_KEY = 'rms_sla_ack_v1';
+
+function loadSlaAckState() {
+    try {
+        const raw = localStorage.getItem(SLA_ACK_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data || typeof data !== 'object') return;
+        (data.warnAcked || []).forEach((id) => slaWarnAcked.add(String(id)));
+        (data.timeoutDoneOnce || []).forEach((id) => slaTimeoutDoneOnce.add(String(id)));
+        Object.keys(data.timeoutLastAckAt || {}).forEach((id) => {
+            const ts = Number(data.timeoutLastAckAt[id]);
+            if (Number.isFinite(ts) && ts > 0) slaTimeoutLastAckAt.set(String(id), ts);
+        });
+        (data.stoppedByArrive || []).forEach((id) => slaStoppedByArrive.add(String(id)));
+    } catch (e) { /* ignore */ }
+}
+
+function saveSlaAckState() {
+    try {
+        const timeoutLastAckAt = {};
+        slaTimeoutLastAckAt.forEach((v, k) => { timeoutLastAckAt[String(k)] = v; });
+        localStorage.setItem(SLA_ACK_KEY, JSON.stringify({
+            warnAcked: Array.from(slaWarnAcked),
+            timeoutDoneOnce: Array.from(slaTimeoutDoneOnce),
+            timeoutLastAckAt,
+            stoppedByArrive: Array.from(slaStoppedByArrive)
+        }));
+    } catch (e) { /* ignore */ }
+}
 
 const SLA_TYPE_KEYS = {
     '医疗事件求助': 'medical',
@@ -901,6 +934,7 @@ function stopSlaIfArrivedOnScene() {
         if (ev.status !== '未完成') return;
         if (eventHasArrivedOnScene(ev.id)) {
             slaStoppedByArrive.add(String(ev.id));
+            saveSlaAckState();
         }
     });
 
@@ -961,6 +995,7 @@ function ackSlaStage(alert) {
     const id = String(alert.eventId);
     if (alert.stage === 'warn') {
         slaWarnAcked.add(id);
+        saveSlaAckState();
         return;
     }
     // timeout
@@ -973,6 +1008,7 @@ function ackSlaStage(alert) {
         slaTimeoutLastAckAt.set(id, Date.now());
         slaTimeoutDoneOnce.delete(id);
     }
+    saveSlaAckState();
 }
 
 function shouldShowTimeoutAlert(eventId, repeatMinutes) {
@@ -1170,6 +1206,7 @@ function buildSlaCandidates() {
 }
 
 function evaluateSlaAlerts() {
+    if (!slaDashboardReady) return;
     // 清理已完成 / 已到达事件的状态
     const activeIds = new Set(
         (allEvents || []).filter((ev) => ev.status === '未完成').map((ev) => String(ev.id))
@@ -1190,6 +1227,7 @@ function evaluateSlaAlerts() {
     cleanup(slaTimeoutDoneOnce);
     cleanup(slaTimeoutLastAckAt);
     cleanup(slaStoppedByArrive);
+    saveSlaAckState();
 
     stopSlaIfArrivedOnScene();
 
@@ -1376,13 +1414,13 @@ async function openBroadcastHistoryModal() {
                 ? new Date(m.created_at).toLocaleString('zh-CN', { hour12: false })
                 : '';
             const ch = m.channel === 'all' ? '终端+企微' : (m.channel === 'wecom' ? '企微' : '终端');
-            return `<div class="p-3 border border-[#3d4f66] bg-[#141c28]">
-                <div class="flex justify-between gap-2 text-[11px] text-[#8fa3bc] mb-1">
+            return `<div class="dc-inset-card p-3">
+                <div class="flex justify-between gap-2 text-[11px] mb-1" style="color:var(--rms-muted)">
                     <span>发件人：${escapeHtml(m.actor_username || '—')} · ${escapeHtml(ch)} · ${Number(m.recipient_count) || 0} 人</span>
                     <span class="font-mono">${escapeHtml(time)}</span>
                 </div>
-                <div class="text-xs text-teal-300 font-semibold mb-1">${escapeHtml(m.scope_label || '广播')}</div>
-                <div class="text-sm text-[#e8eef6] whitespace-pre-wrap">${escapeHtml(m.message || '')}</div>
+                <div class="text-xs font-semibold mb-1 dc-soft-link">${escapeHtml(m.scope_label || '广播')}</div>
+                <div class="text-sm whitespace-pre-wrap">${escapeHtml(m.message || '')}</div>
             </div>`;
         }).join('');
     } catch (err) {
@@ -1417,12 +1455,12 @@ async function openUnicastHistoryModal(userId, displayName) {
                 ? new Date(m.created_at).toLocaleString('zh-CN', { hour12: false })
                 : '';
             const ch = m.channel === 'all' ? '终端+企微' : (m.channel === 'wecom' ? '企微' : '终端');
-            return `<div class="p-3 border border-[#3d4f66] bg-[#141c28]">
-                <div class="flex justify-between gap-2 text-[11px] text-[#8fa3bc] mb-1">
+            return `<div class="dc-inset-card p-3">
+                <div class="flex justify-between gap-2 text-[11px] mb-1" style="color:var(--rms-muted)">
                     <span>发件人：${escapeHtml(m.actor_username || '—')} · ${escapeHtml(ch)}</span>
                     <span class="font-mono">${escapeHtml(time)}</span>
                 </div>
-                <div class="text-sm text-[#e8eef6] whitespace-pre-wrap">${escapeHtml(m.message || '')}</div>
+                <div class="text-sm whitespace-pre-wrap">${escapeHtml(m.message || '')}</div>
             </div>`;
         }).join('');
     } catch (err) {
@@ -2060,22 +2098,22 @@ async function openPersonnelCertsModal(userId) {
         }
         listEl.innerHTML = certs.map((c) => {
             const badge = c.type === 'internal'
-                ? '<span class="text-[10px] font-bold px-1.5 py-0.5 bg-blue-900/70 text-blue-200">队内</span>'
-                : '<span class="text-[10px] font-bold px-1.5 py-0.5 bg-green-900/70 text-green-200">通用</span>';
+                ? '<span class="dc-cert-badge is-internal">队内</span>'
+                : '<span class="dc-cert-badge is-external">通用</span>';
             const dates = c.expiry_date
                 ? `签发 ${escapeHtml(formatCertDate(c.issue_date))} · 有效至 ${escapeHtml(formatCertDate(c.expiry_date))}`
                 : `签发 ${escapeHtml(formatCertDate(c.issue_date))}`;
             const img = c.image_url
-                ? `<a href="/get_cert.php?file=${encodeURIComponent(c.image_url)}" target="_blank" rel="noopener" class="text-xs text-sky-300 font-semibold hover:underline">查看证书图</a>`
-                : '<span class="text-xs text-[#8fa3bc]">无附图</span>';
+                ? `<a href="/get_cert.php?file=${encodeURIComponent(c.image_url)}" target="_blank" rel="noopener" class="dc-soft-link text-xs font-semibold hover:underline">查看证书图</a>`
+                : '<span class="text-xs" style="color:var(--rms-muted)">无附图</span>';
             return `
-                <div class="p-3 border border-[#3d4f66] bg-[#141c28] flex justify-between items-start gap-3">
+                <div class="dc-inset-card p-3 flex justify-between items-start gap-3">
                     <div class="min-w-0">
-                        <div class="font-bold text-[#e8eef6] text-sm flex items-center gap-2 flex-wrap">
+                        <div class="font-bold text-sm flex items-center gap-2 flex-wrap">
                             ${badge}
                             <span>${escapeHtml(c.cert_name || '')}</span>
                         </div>
-                        <div class="text-[11px] text-[#8fa3bc] mt-1">${dates}</div>
+                        <div class="text-[11px] mt-1" style="color:var(--rms-muted)">${dates}</div>
                     </div>
                     <div class="shrink-0">${img}</div>
                 </div>

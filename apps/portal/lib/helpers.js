@@ -36,6 +36,15 @@ async function hashPassword(plain) {
     return bcrypt.hash(plain, 10);
 }
 
+function passwordMeetsPolicy(plain) {
+    const s = String(plain || '');
+    return s.length >= 8 && /[a-z]/.test(s) && /[A-Z]/.test(s) && /[0-9]/.test(s);
+}
+
+function passwordPolicyMessage() {
+    return '密码须至少 8 位，且同时包含大写字母、小写字母和数字。';
+}
+
 function formatDateInput(value) {
     if (!value) return '';
     if (value instanceof Date) {
@@ -53,5 +62,7 @@ module.exports = {
     verifyCsrf,
     verifyPassword,
     hashPassword,
+    passwordMeetsPolicy,
+    passwordPolicyMessage,
     formatDateInput
 };

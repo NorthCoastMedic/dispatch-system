@@ -18,8 +18,8 @@
     <div class="dash-container">
         <div class="dash-header">
             <div>
-                <h2>内部导航页 <% if (user.role === 'admin') { %><span class="admin-badge">管理员</span><% } %></h2>
-                <p style="margin: 10px 0 0 0; opacity: 0.9;">欢迎回来，请选择您要执行的操作模块。</p>
+                <h2>导航页 <% if (user.role === 'admin') { %><span class="admin-badge">管理员</span><% } %></h2>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;"><%= welcomeName ? welcomeName + '，欢迎回来。' : '欢迎回来。' %></p>
             </div>
             <form method="POST" action="logout.php" style="margin:0;">
                 <button type="submit" class="logout-btn">退出</button>

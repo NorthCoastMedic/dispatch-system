@@ -130,7 +130,7 @@
                                     if (field.type === 'nav_items') {
                             %>
                             <div class="field">
-                                <label>导航卡片（可改图标 / 名称 / 简介 / 跳转，并调整排序）</label>
+                                <label>导航卡片</label>
                                 <div class="nav-editor-toolbar">
                                     <button type="button" id="btn-nav-add">添加卡片</button>
                                     <button type="button" id="btn-nav-reset">恢复默认导航</button>
@@ -143,7 +143,7 @@
                                     hidden
                                 ><%= val %></textarea>
                                 <p style="margin:8px 0 0;font-size:12px;color:#888;line-height:1.5;">
-                                    「仅管理员」卡片普通用户不可见；「启用」关闭后所有人都不显示。外链请勾选新窗口打开。
+                                    「仅管理员」卡片普通用户不可见；
                                 </p>
                             </div>
                             <% } else if (field.type === 'toggle') {
@@ -275,13 +275,13 @@
                                         <% }) %>
                                     </select>
                                     <% if (fieldKey === 'rms_display_chart_scope_default') { %>
-                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">展示页统计图默认看哪一类事件；页面上仍可手动切换。</p>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">展示页统计图默认显示事件</p>
                                     <% } %>
                                     <% if (fieldKey === 'rms_display_chart_rotate') { %>
-                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">打开后按间隔在「进行中 / 已完成 / 全部」之间轮换；适合大屏无人值守。</p>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">打开后按间隔在「进行中 / 已完成 / 全部」之间轮换</p>
                                     <% } %>
                                     <% if (fieldKey === 'rms_display_chart_skip_empty') { %>
-                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">开启后，自动轮换会跳过当前没有事件的范围（例如没有已完成事件就不停在「已完成」）。</p>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">开启后，自动轮换会跳过当前没有事件的统计表</p>
                                     <% } %>
                                     <% } else if (field.type === 'textarea') { %>
                                     <textarea id="f-<%= catKey %>-<%= fieldKey %>" data-cat="<%= catKey %>" data-key="<%= fieldKey %>" rows="<%= field.rows || 5 %>" placeholder="<%= field.placeholder || '' %>" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;line-height:1.5;resize:vertical;"><%= val %></textarea>
@@ -317,10 +317,10 @@
                                         <% if (fieldKey === 'wecom_webhook_url' || fieldKey === 'rms_firstaid_form_url') { %>inputmode="url" autocomplete="off"<% } %>
                                     >
                                     <% if (fieldKey === 'wecom_webhook_url') { %>
-                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">企业微信群机器人 Webhook 完整 URL；留空则使用 rms/.env。</p>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">企业微信群机器人 Webhook 完整 URL</p>
                                     <% } %>
                                     <% if (fieldKey === 'rms_firstaid_form_url') { %>
-                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">成员终端「急救表单」按钮跳转地址（腾讯问卷 / 飞书表单等均可）。</p>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">成员终端「急救表单」按钮跳转地址</p>
                                     <% } %>
                                     <% } %>
                                 </div>
@@ -338,7 +338,7 @@
                 <button type="submit" class="btn-save">保存设置</button>
                 <span id="settings-msg" class="settings-msg" role="status"></span>
             </div>
-            <p class="settings-hint">左侧切换分类编辑；RMS 内可再切换 SLA / 分区 / 企微。保存写入 org.settings。导航页排序即列表上下顺序。</p>
+            <p class="settings-hint"></p>
         </form>
     </div>
 </main>
@@ -361,16 +361,18 @@
         var cards = document.querySelectorAll('#nav-items-editor .nav-item-card');
         var list = [];
         cards.forEach(function (card, idx) {
+            var id = (card.querySelector('[data-f="id"]') || {}).value || ('item_' + (idx + 1));
+            var locked = id === 'system_settings' || card.getAttribute('data-locked') === '1';
             list.push({
-                id: (card.querySelector('[data-f="id"]') || {}).value || ('item_' + (idx + 1)),
+                id: id,
                 icon: (card.querySelector('[data-f="icon"]') || {}).value || '',
                 title: (card.querySelector('[data-f="title"]') || {}).value || '',
                 desc: (card.querySelector('[data-f="desc"]') || {}).value || '',
                 href: (card.querySelector('[data-f="href"]') || {}).value || '',
                 target: (card.querySelector('[data-f="target"]') || {}).value || '_self',
                 accent: (card.querySelector('[data-f="accent"]') || {}).value || '',
-                admin_only: !!(card.querySelector('[data-f="admin_only"]') || {}).checked,
-                enabled: !!(card.querySelector('[data-f="enabled"]') || {}).checked
+                admin_only: locked ? true : !!(card.querySelector('[data-f="admin_only"]') || {}).checked,
+                enabled: locked ? true : !!(card.querySelector('[data-f="enabled"]') || {}).checked
             });
         });
         return list;
@@ -387,15 +389,16 @@
         if (!box) return;
         if (!items || !items.length) items = FACTORY_DEFAULT_NAV.slice();
         box.innerHTML = items.map(function (item, idx) {
+            var locked = item.id === 'system_settings';
             return (
-                '<div class="nav-item-card" data-idx="' + idx + '">' +
+                '<div class="nav-item-card" data-idx="' + idx + '"' + (locked ? ' data-locked="1"' : '') + '>' +
                     '<div class="nav-item-hd">' +
-                        '<span class="idx">卡片 #' + (idx + 1) + '</span>' +
+                        '<span class="idx">卡片 #' + (idx + 1) + (locked ? ' · 系统' : '') + '</span>' +
                         '<div class="nav-item-actions">' +
                             '<button type="button" data-act="up">上移</button>' +
                             '<button type="button" data-act="down">下移</button>' +
                             '<button type="button" data-act="dup">复制</button>' +
-                            '<button type="button" class="danger" data-act="del">删除</button>' +
+                            (locked ? '' : '<button type="button" class="danger" data-act="del">删除</button>') +
                         '</div>' +
                     '</div>' +
                     '<div class="nav-grid-fields">' +
@@ -410,8 +413,8 @@
                     '</div>' +
                     '<input type="hidden" data-f="id" value="' + esc(item.id || ('item_' + (idx + 1))) + '">' +
                     '<div class="nav-checks">' +
-                        '<label><input type="checkbox" data-f="enabled"' + (item.enabled === false ? '' : ' checked') + '> 启用</label>' +
-                        '<label><input type="checkbox" data-f="admin_only"' + (item.admin_only ? ' checked' : '') + '> 仅管理员可见</label>' +
+                        '<label><input type="checkbox" data-f="enabled"' + (item.enabled === false && !locked ? '' : ' checked') + (locked ? ' disabled' : '') + '> 启用</label>' +
+                        '<label><input type="checkbox" data-f="admin_only"' + (item.admin_only || locked ? ' checked' : '') + (locked ? ' disabled' : '') + '> 仅管理员可见</label>' +
                     '</div>' +
                 '</div>'
             );
@@ -439,6 +442,7 @@
                 var copy = Object.assign({}, list[idx], { id: (list[idx].id || 'item') + '_copy_' + Date.now() });
                 list.splice(idx + 1, 0, copy);
             } else if (act === 'del') {
+                if (list[idx] && list[idx].id === 'system_settings') return;
                 if (list.length <= 1) { alert('至少保留一张导航卡片'); return; }
                 if (!confirm('删除该导航卡片？')) return;
                 list.splice(idx, 1);

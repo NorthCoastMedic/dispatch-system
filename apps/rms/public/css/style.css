@@ -303,48 +303,47 @@ body.dispatch-console .dc-priority-high { background: #7f1d1d; color: #fecaca; }
 body.dispatch-console .dc-priority-mid { background: #78350f; color: #fde68a; }
 body.dispatch-console .dc-priority-low { background: #14532d; color: #bbf7d0; }
 
-/* —— 指挥台弹窗 / 抽屉：硬朗面板，去掉柔和白卡片感 —— */
 body.dispatch-console [id^="modal-"] {
-    background: rgba(8, 12, 20, 0.78) !important;
+    background: rgba(8, 12, 20, 0.55) !important;
 }
 body.dispatch-console [id^="modal-"] > div {
-    background: #1c2738 !important;
-    color: #e8eef6 !important;
-    border: 1px solid #3d4f66 !important;
+    background: var(--rms-panel, #1c2738) !important;
+    color: var(--rms-text, #e8eef6) !important;
+    border: 1px solid var(--rms-border, #3d4f66) !important;
     border-radius: 2px !important;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55) !important;
+    box-shadow: 0 16px 48px var(--rms-shadow, rgba(0, 0, 0, 0.55)) !important;
 }
 body.dispatch-console [id^="modal-"] h3,
 body.dispatch-console [id^="modal-"] .text-gray-800,
 body.dispatch-console [id^="modal-"] .text-gray-900,
 body.dispatch-console [id^="modal-"] .font-bold.text-gray-800 {
-    color: #e8eef6 !important;
+    color: var(--rms-text, #e8eef6) !important;
 }
 body.dispatch-console [id^="modal-"] .text-gray-600,
 body.dispatch-console [id^="modal-"] .text-gray-700,
 body.dispatch-console [id^="modal-"] .text-gray-500,
 body.dispatch-console [id^="modal-"] .text-gray-400 {
-    color: #9eb6d1 !important;
+    color: var(--rms-muted, #9eb6d1) !important;
 }
 body.dispatch-console [id^="modal-"] label,
 body.dispatch-console [id^="modal-"] .block.text-xs {
-    color: #9eb6d1 !important;
+    color: var(--rms-muted, #9eb6d1) !important;
 }
 body.dispatch-console [id^="modal-"] input[type="text"],
 body.dispatch-console [id^="modal-"] input[type="number"],
 body.dispatch-console [id^="modal-"] input:not([type]),
 body.dispatch-console [id^="modal-"] textarea,
 body.dispatch-console [id^="modal-"] select {
-    background: #141c28 !important;
-    border: 1px solid #3d4f66 !important;
+    background: var(--rms-input-bg, #141c28) !important;
+    border: 1px solid var(--rms-border, #3d4f66) !important;
     border-radius: 2px !important;
-    color: #e8eef6 !important;
+    color: var(--rms-text, #e8eef6) !important;
     box-shadow: none !important;
 }
 body.dispatch-console [id^="modal-"] input:focus,
 body.dispatch-console [id^="modal-"] textarea:focus,
 body.dispatch-console [id^="modal-"] select:focus {
-    border-color: #1a84e0 !important;
+    border-color: var(--rms-blue-2, #1a84e0) !important;
     outline: none;
 }
 body.dispatch-console [id^="modal-"] .border,
@@ -356,28 +355,49 @@ body.dispatch-console [id^="modal-"] .rounded-2xl {
 body.dispatch-console [id^="modal-"] .bg-gray-50,
 body.dispatch-console [id^="modal-"] .bg-white,
 body.dispatch-console [id^="modal-"] .hover\:bg-blue-50:hover {
-    background: #243044 !important;
+    background: var(--rms-hover, #243044) !important;
 }
 body.dispatch-console [id^="modal-"] label.border,
 body.dispatch-console [id^="modal-"] label.flex.items-center {
-    border-color: #3d4f66 !important;
-    background: #141c28 !important;
+    border-color: var(--rms-border, #3d4f66) !important;
+    background: var(--rms-input-bg, #141c28) !important;
+    color: var(--rms-text, #e8eef6) !important;
 }
 body.dispatch-console [id^="modal-"] label.has-\[\:checked\]\:bg-blue-50:has(:checked),
-body.dispatch-console [id^="modal-"] label.has-\[\:checked\]\:border-\[\#0056b3\]:has(:checked) {
-    background: #1e3a5f !important;
-    border-color: #1a84e0 !important;
+body.dispatch-console [id^="modal-"] label.has-\[\:checked\]\:border-\[\#0056b3\]:has(:checked),
+body.dispatch-console [id^="modal-"] label.has-\[\:checked\]\:bg-teal-50:has(:checked) {
+    background: var(--rms-status-busy-bg, #1e3a5f) !important;
+    border-color: var(--rms-blue-2, #1a84e0) !important;
+    color: var(--rms-status-busy-fg, #93c5fd) !important;
 }
 body.dispatch-console [id^="modal-"] .bg-gray-100,
 body.dispatch-console [id^="modal-"] button.bg-gray-100 {
-    background: #2a3648 !important;
-    color: #dce7f5 !important;
-    border: 1px solid #3d4f66 !important;
+    background: var(--rms-panel-2, #2a3648) !important;
+    color: var(--rms-text, #dce7f5) !important;
+    border: 1px solid var(--rms-border, #3d4f66) !important;
     border-radius: 2px !important;
     box-shadow: none !important;
 }
-body.dispatch-console [id^="modal-"] button.bg-gray-100:hover {
-    background: #334155 !important;
+body.dispatch-console [id^="modal-"] .hover\:bg-teal-50:hover,
+body.dispatch-console [id^="modal-"] .hover\:bg-indigo-50:hover,
+body.dispatch-console [id^="modal-"] .hover\:bg-green-50:hover {
+    background: var(--rms-hover, #243044) !important;
+}
+body.dispatch-console [id^="modal-"] .broadcast-scope-chip {
+    background: var(--rms-input-bg, #141c28) !important;
+    color: var(--rms-text, #e8eef6) !important;
+    border: 1px solid var(--rms-border, #3d4f66) !important;
+}
+body.dispatch-console [id^="modal-"] .broadcast-scope-chip.bg-teal-600 {
+    background: #0d9488 !important;
+    color: #fff !important;
+    border-color: #0d9488 !important;
+}
+body.dispatch-console [id^="modal-"] #batch-assign-user-list,
+body.dispatch-console [id^="modal-"] #broadcast-user-list,
+body.dispatch-console [id^="modal-"] #admin-assign-event-list {
+    background: var(--rms-bg-2, #141c28) !important;
+    border-color: var(--rms-border, #3d4f66) !important;
 }
 body.dispatch-console [id^="modal-"] button.bg-\[\#0056b3\],
 body.dispatch-console [id^="modal-"] button.bg-indigo-600,
@@ -412,52 +432,52 @@ body.dispatch-console #modal-sla-alert > div {
     border-top-color: #d97706 !important;
 }
 body.dispatch-console [id^="modal-"] .border-b {
-    border-color: #334155 !important;
+    border-color: var(--rms-border-soft, #334155) !important;
 }
 
-/* 事件详情侧栏 */
 body.dispatch-console #drawer-event-detail > div.absolute.inset-0 {
-    background: rgba(8, 12, 20, 0.72) !important;
+    background: rgba(8, 12, 20, 0.55) !important;
 }
 body.dispatch-console #drawer-event-detail aside {
-    background: #1c2738 !important;
-    border-left: 1px solid #3d4f66 !important;
-    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.45);
+    background: var(--rms-panel, #1c2738) !important;
+    border-left: 1px solid var(--rms-border, #3d4f66) !important;
+    box-shadow: -12px 0 40px var(--rms-shadow, rgba(0, 0, 0, 0.45));
     border-radius: 0 !important;
+    color: var(--rms-text, #e8eef6);
 }
 body.dispatch-console #drawer-event-detail aside > div:first-child {
-    background: #0d3a6e !important;
-    border-bottom: 1px solid #164a7c !important;
+    background: var(--rms-header, #0d3a6e) !important;
+    border-bottom: 1px solid var(--rms-header-line, #164a7c) !important;
     border-radius: 0 !important;
 }
 body.dispatch-console #drawer-event-detail #ed-body {
-    color: #dce7f5;
-    background: #1c2738;
+    color: var(--rms-text, #dce7f5);
+    background: var(--rms-panel, #1c2738);
 }
 body.dispatch-console #drawer-event-detail #ed-body .text-gray-800,
 body.dispatch-console #drawer-event-detail #ed-body .text-gray-900,
 body.dispatch-console #drawer-event-detail #ed-body .font-medium {
-    color: #e8eef6 !important;
+    color: var(--rms-text, #e8eef6) !important;
 }
 body.dispatch-console #drawer-event-detail #ed-body .text-gray-400,
 body.dispatch-console #drawer-event-detail #ed-body .text-gray-500 {
-    color: #8fa3bc !important;
+    color: var(--rms-muted, #8fa3bc) !important;
 }
 body.dispatch-console #drawer-event-detail #ed-body input,
 body.dispatch-console #drawer-event-detail #ed-body textarea,
 body.dispatch-console #drawer-event-detail #ed-body select {
-    background: #141c28 !important;
-    border: 1px solid #3d4f66 !important;
+    background: var(--rms-input-bg, #141c28) !important;
+    border: 1px solid var(--rms-border, #3d4f66) !important;
     border-radius: 2px !important;
-    color: #e8eef6 !important;
+    color: var(--rms-text, #e8eef6) !important;
 }
 body.dispatch-console #drawer-event-detail #ed-body .border-b,
 body.dispatch-console #drawer-event-detail #ed-body .border-gray-100 {
-    border-color: #334155 !important;
+    border-color: var(--rms-border-soft, #334155) !important;
 }
 body.dispatch-console #drawer-event-detail #ed-body .bg-slate-100 {
-    background: #334155 !important;
-    color: #dce7f5 !important;
+    background: var(--rms-panel-2, #334155) !important;
+    color: var(--rms-text, #dce7f5) !important;
 }
 body.dispatch-console #drawer-event-detail #btn-save-event-drawer,
 body.dispatch-console #drawer-event-detail #btn-toggle-event-lock,

@@ -3,7 +3,7 @@ const fs = require('fs');
 const express = require('express');
 const multer = require('multer');
 const { query } = require('./lib/db');
-const { ensureCsrf, verifyCsrf, verifyPassword, hashPassword, formatDateInput } = require('./lib/helpers');
+const { ensureCsrf, verifyCsrf, verifyPassword, hashPassword, passwordMeetsPolicy, passwordPolicyMessage, formatDateInput } = require('./lib/helpers');
 const { CERT_DIR, AVATAR_DIR, processAndSaveCertificate, processAndSaveAvatar, deleteCertificateFile, deleteAvatarFile, publicAvatarUrl } = require('./lib/upload');
 const { requireLogin, requireAdmin } = require('./middleware/auth');
 const { setUnifiedSession, ensureUnifiedSession } = require('../_shared/session');
@@ -178,7 +178,17 @@ app.get('/dashboard.php', requireLogin, async (req, res) => {
     } catch (_) {
         navItems = getNavItemsFromSettings(null);
     }
-    res.render('dashboard', { user: currentUser(req), navItems });
+    const user = currentUser(req);
+    let welcomeName = (user && user.username) ? user.username : '';
+    const vid = req.session && req.session.volunteer_id;
+    if (vid) {
+        try {
+            const vn = await query('SELECT name FROM volunteers WHERE id = ? LIMIT 1', [vid]);
+            const nm = vn[0] && String(vn[0].name || '').trim();
+            if (nm) welcomeName = nm;
+        } catch (_) { /* ignore */ }
+    }
+    res.render('dashboard', { user, navItems, welcomeName });
 });
 
 // 系统设置（仅管理员）
@@ -212,8 +222,8 @@ app.post('/form_pass.php', requireLogin, async (req, res) => {
     if (new_password !== confirm_password) {
         return res.render('form_pass', { user: currentUser(req), csrf, message: '', error: '两次新密码输入不一致。' });
     }
-    if (!new_password || String(new_password).length < 8) {
-        return res.render('form_pass', { user: currentUser(req), csrf, message: '', error: '新密码至少需要 8 位。' });
+    if (!passwordMeetsPolicy(new_password)) {
+        return res.render('form_pass', { user: currentUser(req), csrf, message: '', error: passwordPolicyMessage() });
     }
     try {
         const rows = await query('SELECT password_hash FROM users WHERE id = ?', [req.session.user_id]);
@@ -539,6 +549,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 const exists = await query('SELECT id FROM users WHERE username=?', [body.username]);
                 if (exists.length) {
                     msg = '❌ 账号创建失败：登录名已存在。';
+                } else if (!passwordMeetsPolicy(body.password)) {
+                    msg = '❌ 账号创建失败：' + passwordPolicyMessage();
                 } else {
                     const hash = await hashPassword(body.password);
                     await query(
@@ -554,6 +566,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 const exists = await query('SELECT id FROM users WHERE username=? AND id != ?', [body.username, uid]);
                 if (exists.length) {
                     msg = '❌ 更新失败：该登录名已被占用。';
+                } else if (body.new_password && !passwordMeetsPolicy(body.new_password)) {
+                    msg = '❌ 更新失败：' + passwordPolicyMessage();
                 } else if (body.new_password) {
                     const hash = await hashPassword(body.new_password);
                     await query(

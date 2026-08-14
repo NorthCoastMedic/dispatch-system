@@ -7,6 +7,7 @@ let myCurrentEventId = null;
 let myPendingEventId = null;
 let latestDispatchMessage = null;
 let offlineFlushTimer = null;
+const TM_MSG_DISMISS_KEY_PREFIX = 'rms_tm_msg_dismiss_v1_';
 
 function queueUserId() {
     return currentUser && currentUser.id != null ? currentUser.id : 0;
@@ -345,6 +346,59 @@ function kindTitle(kind) {
     return '调度单呼';
 }
 
+function tmMsgDismissKey() {
+    return TM_MSG_DISMISS_KEY_PREFIX + queueUserId();
+}
+
+function loadDismissedMessages() {
+    try {
+        const raw = localStorage.getItem(tmMsgDismissKey());
+        const data = raw ? JSON.parse(raw) : null;
+        if (!data || typeof data !== 'object') return { ids: [], fps: [] };
+        return {
+            ids: Array.isArray(data.ids) ? data.ids : [],
+            fps: Array.isArray(data.fps) ? data.fps : []
+        };
+    } catch (e) {
+        return { ids: [], fps: [] };
+    }
+}
+
+function saveDismissedMessages(state) {
+    try {
+        localStorage.setItem(tmMsgDismissKey(), JSON.stringify({
+            ids: (state.ids || []).slice(-50),
+            fps: (state.fps || []).slice(-50)
+        }));
+    } catch (e) { /* ignore */ }
+}
+
+function messageFingerprint(p) {
+    if (!p) return '';
+    return String(p.kind || '') + '\n' + String(p.message || p.preview || '');
+}
+
+function isMessageDismissed(p) {
+    if (!p) return false;
+    const st = loadDismissedMessages();
+    const id = p.id;
+    if (id != null && /^\d+$/.test(String(id)) && st.ids.indexOf(Number(id)) !== -1) return true;
+    const fp = messageFingerprint(p);
+    return !!(fp && st.fps.indexOf(fp) !== -1);
+}
+
+function markMessageDismissed(p) {
+    if (!p) return;
+    const st = loadDismissedMessages();
+    if (p.id != null && /^\d+$/.test(String(p.id))) {
+        const n = Number(p.id);
+        if (st.ids.indexOf(n) === -1) st.ids.push(n);
+    }
+    const fp = messageFingerprint(p);
+    if (fp && st.fps.indexOf(fp) === -1) st.fps.push(fp);
+    saveDismissedMessages(st);
+}
+
 function showDispatchMessageBanner(payload, opts = {}) {
     if (!payload) return;
     latestDispatchMessage = payload;
@@ -368,8 +422,11 @@ function showDispatchMessageBanner(payload, opts = {}) {
 }
 
 function dismissDispatchBanner() {
+    markMessageDismissed(latestDispatchMessage);
     const banner = document.getElementById('dispatch-message-banner');
     if (banner) banner.classList.add('hidden');
+    const modal = document.getElementById('modal-dispatch-message');
+    if (modal) modal.classList.add('hidden');
 }
 
 function openDispatchMessageModal(payload) {
@@ -398,14 +455,16 @@ async function loadLatestMessageFromHistory() {
         const data = await res.json();
         if (!data.success || !data.messages || !data.messages.length) return;
         const m = data.messages[0];
-        showDispatchMessageBanner({
+        const payload = {
             id: m.id,
             kind: m.kind,
             message: m.message,
             preview: String(m.message || '').slice(0, 80),
             from: m.actor_username || '调度员',
             created_at: m.created_at
-        }, { silent: true });
+        };
+        if (isMessageDismissed(payload)) return;
+        showDispatchMessageBanner(payload, { silent: true });
     } catch (_) { /* ignore */ }
 }
 
@@ -532,9 +591,9 @@ function bindDispatchMessageUi() {
     const modal = document.getElementById('modal-dispatch-message');
     const btnClose = document.getElementById('btn-close-dispatch-message');
     if (btnClose && modal) {
-        btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+        btnClose.addEventListener('click', () => dismissDispatchBanner());
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.classList.add('hidden');
+            if (e.target === modal) dismissDispatchBanner();
         });
     }
 }

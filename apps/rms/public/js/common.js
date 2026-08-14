@@ -43,7 +43,6 @@ function resolveAlarmAudio() {
     const alarmAudio = document.getElementById('alarm-audio');
     if (!alarmAudio) return null;
     const src = alarmAudio.getAttribute('src') || '';
-    // 历史错误：写了站点根路径 /sounds/...，实际文件在 /rms/sounds/
     if (src === '/sounds/alarm.mp3' || src.indexOf('/sounds/') === 0) {
         const base = (window.Platform && window.Platform.base) || '/rms';
         alarmAudio.setAttribute('src', base + '/sounds/alarm.mp3');
@@ -142,7 +141,6 @@ function unlockAlarmAudioOnce() {
 ['pointerdown', 'touchstart', 'keydown'].forEach((ev) => {
     document.addEventListener(ev, unlockAlarmAudioOnce, { once: true, passive: true });
 });
-// 终端上点状态按钮也再解锁一次，避免首屏未点到导致收不到音
 document.addEventListener('click', () => {
     try { resolveMessageToneAudio(); } catch (_) { /* ignore */ }
     const tone = document.getElementById('message-tone');
