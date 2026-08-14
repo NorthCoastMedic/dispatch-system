@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme-default="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>活动保障GPS定位平台</title>
+    <script>
+    (function () {
+        var k = 'rms_theme';
+        var d = document.documentElement.getAttribute('data-theme-default') || 'light';
+        try {
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark') ? t : d);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', d);
+        }
+        document.documentElement.classList.add('platform-themed');
+    })();
+    </script>
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <link rel="stylesheet" href="/platform/topnav.css?v=20260814c">
+    <link rel="stylesheet" href="/platform/theme.css?v=20260814a">
+    <script src="/platform/topnav.js?v=20260814c" defer></script>
+    <script src="/platform/theme.js?v=20260814a" defer></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css?v=20260814q">
+</head>
+<body class="light-theme">
+    <!-- 移动端侧边栏及弹窗背后的半透明遮罩 -->
+    <div id="mobile-overlay" class="mobile-overlay"></div>
+
+    <header class="fixed-header">
+        <div class="header-left">
+            <span class="event-tag">⏱ <span id="header-time">00:00:00</span></span>
+            <div id="active-alert" class="alert-box">系统准备就绪</div>
+        </div> 
+        <div class="header-center">
+            <button id="mobile-menu-btn" class="mobile-only-btn">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12h18M3 6h18M3 18h18"></path></svg>
+            </button>
+            <h1 id="event-name">活动指挥调度平台</h1>
+        </div>
+        <div class="header-right">
+            <div id="weather-monitor">
+                <span>🌡 <span id="w-temp">--</span>°C</span>
+                <span>👤 体感 <span id="w-feels">--</span>°C</span>
+                <span>💧 <span id="w-hum">--</span>%</span>
+                <span>💨 <span id="w-wind">--</span>m/s</span>
+                <span>🧭 <span id="w-dir">微风</span></span>
+            </div>
+            <nav class="top-nav">
+                <div data-rms-theme-slot class="rms-theme-toggle-wrap"></div>
+                <div id="platform-topnav" data-ptn="modules"></div>
+                <a href="/wbgt/" class="nav-item">WBGT</a>
+                <a href="/rtls/" class="nav-item active">实时大屏</a>
+                <a href="/rtls/admin.html" class="nav-item admin-btn">⚙ 设备管理</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="map-wrapper">
+        <div id="map"></div>
+        
+        <aside class="float-sidebar-left">
+            <div class="panel-header">
+                <span class="panel-title">📋 设备列表</span>
+                <div class="stats-badge">
+                    <span>在线 <strong id="online-count" class="text-blue">0</strong></span>
+                    <span class="divider">/</span>
+                    <span>低电 <strong id="low-batt-count" class="text-red">0</strong></span>
+                </div>
+            </div>
+            
+            <div id="filter-bar" class="filter-panel">
+                <label class="filter-item"><input type="checkbox" class="role-filter" value="AED" checked> AED</label>
+                <label class="filter-item"><input type="checkbox" class="role-filter" value="救护员" checked> 救护员</label>
+                <label class="filter-item"><input type="checkbox" class="role-filter" value="观察员" checked> 观察员</label>
+                <label class="filter-item"><input type="checkbox" class="role-filter" value="救护车" checked> 救护车</label>
+            </div>
+            
+            <ul id="device-list"></ul>
+        </aside>
+        
+        <div id="device-sidebar" class="sidebar-right">
+            <div class="sidebar-header">
+                <h3>🔍 设备详细信息</h3>
+                <button class="close-btn" onclick="window.closeSidebar()">×</button>
+            </div>
+            <div class="sidebar-content">
+                <div class="info-group"><span class="info-label">设备名称</span> <span id="info-nickname" class="info-value">--</span></div>
+                <div class="info-group"><span class="info-label">类型/角色</span> <span id="info-role" class="info-value">--</span></div>
+                <div class="info-group"><span class="info-label">当前电量</span> <span class="info-value"><span id="info-batt">--</span>%</span></div>
+                <div class="info-group"><span class="info-label">回传时间</span> <span id="info-update-time" class="info-value">--</span></div>
+                <div class="info-group"><span class="info-label">硬件ID</span> <span id="info-id" class="info-value font-mono">--</span></div>
+                
+                <div class="ui-divider"></div>
+                
+                <label for="info-remark" class="remark-title">备注：</label>
+                <textarea id="info-remark" placeholder="请输入备注信息..."></textarea>
+                <button class="action-btn" onclick="window.saveRemark()">保存</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="fixed-footer">
+        <div id="sys-status">
+            <span id="status-db">DB: --</span>
+            <span id="status-api">API: --</span>
+            <span id="status-mqtt">MQTT: --</span>
+        </div>
+        <div id="interval-control">
+            <label>公里牌间隔：</label>
+            <select id="marker-interval">
+                <option value="300">300m</option>
+                <option value="500">500m</option>
+                <option value="1000">1.0km</option>
+                <option value="1500" selected>1.5km</option>
+                <option value="2000">2.0km</option>
+                <option value="2500">2.5km</option>
+                <option value="0">关闭显示</option>
+            </select>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="app.js?v=20260814q"></script>
+</body>
+</html>

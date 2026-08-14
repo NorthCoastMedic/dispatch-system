@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme-default="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title><%= branding.internal_platform_name %></title>
+    <script>
+    (function () {
+        var k = 'rms_theme';
+        var d = document.documentElement.getAttribute('data-theme-default') || 'light';
+        try {
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark') ? t : d);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', d);
+        }
+        document.documentElement.classList.add('platform-themed');
+    })();
+    </script>
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260814r">
+    <link rel="stylesheet" href="/platform/theme.css?v=20260814a">
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <script src="/platform/theme.js?v=20260814a" defer></script>
+    <style>
+        .user-menu { position: relative; list-style: none; cursor: pointer; }
+        .dropdown {
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--pt-panel, #fff);
+            border: 1px solid var(--pt-border, #ddd);
+            border-radius: 8px;
+            box-shadow: 0 4px 10px var(--pt-shadow, rgba(0,0,0,0.1));
+            padding: 10px 0;
+            margin-top: 5px;
+            z-index: 1000;
+            min-width: 120px;
+        }
+        .user-menu:hover .dropdown { opacity: 1; visibility: visible; }
+        .dropdown.show { opacity: 1; visibility: visible; }
+        .dropdown li { list-style: none; }
+        .dropdown li a { display: block; padding: 8px 15px; color: var(--pt-text, #333); text-decoration: none; font-size: 14px; }
+        .dropdown li a:hover { background: var(--pt-hover, #f4f4f4); }
+        .dropdown li .logout-menu-btn {
+            display: block; width: 100%; text-align: left; padding: 8px 15px;
+            border: 0; background: none; color: var(--pt-text, #333); font-size: 14px;
+            cursor: pointer; font-family: inherit;
+        }
+        .dropdown li .logout-menu-btn:hover { background: var(--pt-hover, #f4f4f4); }
+        .user-name { user-select: none; }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <nav class="nav-container">
+            <a href="dashboard.php" class="logo"><%= branding.internal_platform_name %></a>
+            <ul class="nav-links">
+                <li class="rms-theme-toggle-wrap" data-rms-theme-slot></li>
+                <% if (typeof user !== 'undefined' && user) { %>
+                    <li class="user-menu" id="userMenu">
+                        <span class="user-name" onclick="toggleDropdown(event)">👤 <%= user.username || '队员' %> ▼</span>
+                        <ul class="dropdown" id="dropdownMenu">
+                            <li><a href="/form_pass.php">🔑 修改密码</a></li>
+                            <li>
+                                <form method="POST" action="/logout.php" style="margin:0;">
+                                    <button type="submit" class="logout-menu-btn">🚪 安全退出</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                <% } else { %>
+                    <li><a href="<%= branding.public_site_url %>" target="_blank" rel="noopener noreferrer"><%= branding.public_site_label %></a></li>
+                <% } %>
+            </ul>
+        </nav>
+    </header>
+    <script>
+        function toggleDropdown(event) {
+            event.stopPropagation();
+            var menu = document.getElementById("dropdownMenu");
+            if (menu) menu.classList.toggle("show");
+        }
+        function closeDropdowns() {
+            var menu = document.getElementById("dropdownMenu");
+            if (menu) menu.classList.remove('show');
+        }
+        window.addEventListener('click', closeDropdowns);
+        window.addEventListener('touchstart', function(event) {
+            var menu = document.getElementById("userMenu");
+            if (menu && !menu.contains(event.target)) closeDropdowns();
+        });
+    </script>

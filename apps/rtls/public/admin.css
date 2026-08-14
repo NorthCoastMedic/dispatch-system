@@ -1,0 +1,466 @@
+/* ==========================================================================
+   1. 基础规范与大屏主题对齐 (低视觉疲劳、专业工程感)
+   ========================================================================== */
+body {
+    background: #f4f6f9;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    color: #334155;
+    -webkit-font-smoothing: antialiased;
+}
+
+.font-mono { 
+    font-family: 'Courier New', Courier, monospace; 
+}
+
+/* 顶栏对齐导航页配色 */
+.admin-header {
+    height: 64px;
+    background: #0056b3;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 20px;
+    box-shadow: 0 2px 10px rgba(0, 86, 179, 0.25);
+    border-bottom: 3px solid #004494;
+}
+
+.admin-header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.top-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.top-nav .nav-btn {
+    color: rgba(255, 255, 255, 0.92);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 16px;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.12);
+    white-space: nowrap;
+}
+
+.top-nav .nav-btn:hover {
+    color: #0056b3;
+    background: #ffffff;
+    border-color: #ffffff;
+}
+
+.top-nav .nav-btn.active {
+    color: #0056b3;
+    background: #ffffff;
+    border-color: #ffffff;
+}
+
+/* ==========================================================================
+   2. 栅格布局与控制面板 (Panel)
+   ========================================================================== */
+.content-wrapper {
+    max-width: 1400px;
+    margin: 24px auto;
+    padding: 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.panel h2 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    color: #1e293b;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-left: 4px solid #0056b3;
+    padding-left: 10px;
+}
+
+.grid-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.card-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.card-box h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #475569;
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   3. 交互表单、按钮与工具栏
+   ========================================================================== */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #334155;
+    background-color: #ffffff;
+    box-sizing: border-box;
+    transition: all 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #0056b3;
+    box-shadow: 0 0 0 3px rgba(0,120,215,0.12);
+}
+
+textarea {
+    resize: none;
+    height: 80px;
+}
+
+/* 工具栏 */
+.toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.toolbar input[type="text"] {
+    max-width: 300px;
+}
+
+/* 按钮样式矩阵 */
+button {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+}
+
+button:hover { background: #f1f5f9; color: #1e293b; }
+
+button.primary {
+    background: #0056b3;
+    border-color: #0056b3;
+    color: #ffffff;
+    font-weight: 600;
+}
+button.primary:hover { background: #004494; border-color: #004494; }
+
+button.danger {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #ffffff;
+}
+button.danger:hover { background: #dc2626; border-color: #dc2626; }
+
+/* 文件上传按钮美化 */
+.file-label {
+    display: inline-block;
+    padding: 9px 16px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #475569;
+    transition: all 0.15s ease;
+}
+.file-label:hover { background: #e2e8f0; color: #1e293b; }
+
+/* ==========================================================================
+   4. 设备网格卡片 (Device Grid)
+   ========================================================================== */
+#device-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.device-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 16px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-top: 4px solid #94a3b8;
+}
+
+.device-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.device-card.enabled { border-top-color: #22c55e; }  /* 在线/启用 翠绿 */
+.device-card.disabled { border-top-color: #ef4444; } /* 禁用/隐藏 战术红 */
+
+.device-card strong {
+    display: block;
+    font-size: 15px;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.device-card small {
+    display: block;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+/* ==========================================================================
+   5. 数据表格样式 (Admin Table)
+   ========================================================================== */
+.table-wrapper {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: #ffffff;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    text-align: left;
+    min-width: 600px; /* 保证小屏可水平滑动而不挤压内容 */
+}
+
+.admin-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.admin-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+}
+
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: #f8fafc; }
+
+/* ==========================================================================
+   6. 战术弹窗与模糊遮罩 (Overlay Modal)
+   ========================================================================== */
+.overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6); 
+    backdrop-filter: blur(4px); 
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal {
+    background: #ffffff;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+/* ==========================================================================
+   7. 移动设备与平板适配 (Media Queries)
+   ========================================================================== */
+@media (max-width: 768px) {
+    .admin-header {
+        height: auto;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 15px 20px;
+        gap: 12px;
+    }
+
+    .top-nav { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+    .top-nav .nav-btn { flex: 1 1 auto; text-align: center; }
+
+    .content-wrapper { padding: 0 12px; margin: 16px auto; }
+    .panel { padding: 16px; }
+
+    .grid-layout { grid-template-columns: 1fr; gap: 16px; }
+
+    .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .toolbar input[type="text"] { max-width: 100%; }
+    .toolbar .file-label { text-align: center; }
+
+    /* 提升移动端触控体验：防误触与iOS强制防缩放 (≥16px) */
+    input[type="text"], input[type="number"], input[type="date"], input[type="time"], select, textarea, button {
+        font-size: 16px !important;
+        padding: 12px;
+    }
+
+    /* 模态框全屏化，适配键盘弹出 */
+    .modal {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        border-radius: 0;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+    
+    #modal-map { height: 250px !important; }
+}
+/* ================= 平台亮/暗主题 ================= */
+html[data-theme] body {
+    background: var(--pt-bg, #f4f6f9);
+    color: var(--pt-text-2, #334155);
+}
+html[data-theme] .admin-header {
+    background: var(--pt-header, #0056b3);
+    border-bottom-color: var(--pt-header-2, #004494);
+    box-shadow: 0 2px 10px var(--pt-shadow, rgba(0, 86, 179, 0.25));
+}
+html[data-theme] .top-nav .nav-btn.active,
+html[data-theme] .top-nav .nav-btn:hover {
+    color: var(--pt-nav-active-fg, #0056b3);
+    background: var(--pt-nav-active-bg, #ffffff);
+    border-color: var(--pt-nav-active-bg, #ffffff);
+}
+html[data-theme] .panel,
+html[data-theme] .card-box,
+html[data-theme] .modal,
+html[data-theme] .device-card,
+html[data-theme] .table-wrapper {
+    background: var(--pt-panel, #ffffff) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+    color: var(--pt-text-2, #334155) !important;
+    box-shadow: 0 4px 16px var(--pt-shadow, rgba(0,0,0,0.06));
+}
+html[data-theme] .panel h2,
+html[data-theme] .card-box h3,
+html[data-theme] .modal h3,
+html[data-theme] .device-card strong {
+    color: var(--pt-text, #1e293b) !important;
+}
+html[data-theme] .device-card small,
+html[data-theme] .device-card .meta {
+    color: var(--pt-muted, #64748b) !important;
+}
+html[data-theme] input[type="text"],
+html[data-theme] input[type="date"],
+html[data-theme] input[type="time"],
+html[data-theme] input[type="number"],
+html[data-theme] select,
+html[data-theme] textarea {
+    background: var(--pt-input-bg, #fff) !important;
+    color: var(--pt-text, #1e293b) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+}
+html[data-theme] .admin-table th {
+    background: var(--pt-panel-2, #f8fafc) !important;
+    color: var(--pt-text, #1e293b) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+}
+html[data-theme] .admin-table td {
+    border-color: var(--pt-border, #e2e8f0) !important;
+    color: var(--pt-text-2, #334155) !important;
+}
+html[data-theme] .admin-table tr:hover td {
+    background: var(--pt-hover, #f8fafc) !important;
+}
+html[data-theme] button:not(.primary):not(.danger) {
+    background: var(--pt-panel, #fff) !important;
+    color: var(--pt-text-2, #475569) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+}
+html[data-theme] button:not(.primary):not(.danger):hover {
+    background: var(--pt-hover, #f1f5f9) !important;
+    color: var(--pt-text, #1e293b) !important;
+}
+html[data-theme] .primary,
+html[data-theme] button.primary {
+    background: var(--pt-accent, #0056b3) !important;
+    border-color: var(--pt-accent, #0056b3) !important;
+    color: #fff !important;
+}
+html[data-theme] .file-label {
+    background: var(--pt-panel-2, #f1f5f9) !important;
+    color: var(--pt-text-2, #475569) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+}
+html[data-theme] .file-label:hover {
+    background: var(--pt-hover, #e2e8f0) !important;
+    color: var(--pt-text, #1e293b) !important;
+}
+html[data-theme] .sched-row {
+    background: var(--pt-panel-2, #f8fafc) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+    color: var(--pt-text-2, #334155) !important;
+}
+html[data-theme] .sched-row .sched-date { color: var(--pt-muted, #64748b) !important; }
+html[data-theme] .sched-row .sched-time { color: var(--pt-accent, #0078D7) !important; }
+html[data-theme] .sched-row .sched-name { color: var(--pt-text, #334155) !important; }
+html[data-theme="dark"] .device-card strong { color: var(--pt-text) !important; }

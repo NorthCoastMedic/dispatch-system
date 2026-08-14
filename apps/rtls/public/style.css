@@ -1,0 +1,561 @@
+﻿/* ==========================================================================
+   1. 鍩虹鐗堥潰閲嶇疆 (瑙勬暣銆佸姟瀹炪€佷綆瑙嗚鐤插姵)
+   ========================================================================== */
+body.light-theme {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f4f6f9; /* 鏍囧噯娴呯伆鑹插伐绋嬪簳鑹?*/
+    color: #334155; /* 纰抽粦楂樻竻鏅板害瀛椾綋 */
+}
+
+.map-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.font-mono { font-family: 'Courier New', Courier, monospace; }
+.text-blue { color: #0056b3 !important; } /* 瀵艰埅椤典富鑹?*/
+.text-red { color: #ef4444 !important; }
+.font-bold { font-weight: bold; }
+
+/* ==========================================================================
+   2. 椤舵爮锛堝鑸〉钃?+ 绱у噾涓夋爮锛屽彸渚ф寜鍐呭瀹藉害锛?
+   ========================================================================== */
+.fixed-header {
+    height: 64px;
+    background: #0056b3;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 16px;
+    z-index: 1000;
+    position: relative;
+    border-bottom: 3px solid #004494;
+    box-shadow: 0 2px 10px rgba(0, 86, 179, 0.25);
+}
+
+.mobile-only-btn { display: none; }
+
+/* 宸︿晶鏍忥細鏃堕棿涓庢彁閱掓 */
+.header-left {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.event-tag {
+    background: rgba(255, 255, 255, 0.18);
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 13px;
+    color: #fff;
+}
+
+.alert-box {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 12px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.95);
+    transition: all 0.3s;
+}
+
+/* 涓棿鏍忥細璧涗簨鍚嶇О */
+.header-center {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+}
+
+#event-name {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* 鍙充晶鏍忥細姘旇薄涓庡鑸潬鍙筹紝瀹藉害闅忓唴瀹?*/
+.header-right {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.top-nav {
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.12);
+    padding: 4px;
+    border-radius: 20px;
+}
+
+.nav-item {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 16px;
+    transition: all 0.2s;
+}
+
+.nav-item:hover { color: #ffffff; background: rgba(255, 255, 255, 0.12); }
+
+.nav-item.active {
+    background: #ffffff;
+    color: #0056b3 !important;
+}
+
+.admin-btn { color: #cce4ff; }
+
+/* ==========================================================================
+   3. 宸︿晶鎮诞闈㈡澘
+   ========================================================================== */
+.float-sidebar-left {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    bottom: 20px;
+    width: 320px;
+    background: #ffffff;
+    z-index: 50;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column; 
+    overflow: hidden;
+}
+
+.panel-header {
+    padding: 16px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+}
+
+.panel-title { font-weight: 700; color: #1e293b; font-size: 15px; }
+
+.stats-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    background: #ffffff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+}
+.stats-badge .divider { color: #cbd5e1; margin: 0 4px; }
+
+.filter-panel {
+    padding: 10px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.filter-item {
+    font-size: 12px;
+    font-weight: 500;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+.filter-item:has(input:checked) {
+    background: rgba(0, 86, 179, 0.08);
+
+    border-color: rgba(0, 120, 215, 0.3); /* 淇敼涓鸿摑杈规 */
+    color: #0056b3; /* 淇敼涓轰富棰樿摑 */
+    font-weight: 600;
+}
+.filter-item input { display: none; }
+
+#device-list {
+    list-style: none;
+    padding: 10px;
+    margin: 0;
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.card {
+    background: #ffffff;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.card:hover {
+    border-color: #0056b3; /* 淇敼涓轰富棰樿摑 */
+    background: #fdfefe;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.card h4 {
+    margin: 0 0 6px 0;
+    font-size: 14px;
+    color: #1e293b;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+}
+
+.role-badge {
+    font-size: 11px;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.card p {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* ==========================================================================
+   4. 鍙充晶鎶藉眽寮忛潰鏉?
+   ========================================================================== */
+.sidebar-right {
+    position: absolute;
+    top: 20px;
+    right: -380px;
+    bottom: 20px;
+    width: 340px;
+    background: #ffffff;
+    z-index: 60;
+    transition: right 0.3s ease;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: -4px 0 16px rgba(0,0,0,0.08);
+}
+.sidebar-right.active { right: 20px; }
+
+.sidebar-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.sidebar-header h3 { margin: 0; font-size: 14px; color: #1e293b; }
+
+.close-btn { background: transparent; color: #94a3b8; border: none; font-size: 20px; cursor: pointer; padding: 4px; line-height: 1;}
+.close-btn:hover { color: #334155; }
+
+.sidebar-content { padding: 20px; }
+
+.info-group {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+.info-label { color: #64748b; }
+.info-value { color: #1e293b; font-weight: 600; }
+
+.ui-divider { height: 1px; background: #e2e8f0; margin: 16px 0; }
+
+.remark-title { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+#info-remark {
+    width: 100%; height: 80px; padding: 8px; background: #f8fafc; border: 1px solid #cbd5e1;
+    border-radius: 4px; box-sizing: border-box; resize: none; font-size: 13px;
+}
+#info-remark:focus { outline: none; border-color: #0056b3; } /* 淇敼涓轰富棰樿摑 */
+
+.action-btn {
+    background: #0056b3; color: #ffffff; border: none; padding: 10px; /* 淇敼涓轰富棰樿摑 */
+    border-radius: 4px; cursor: pointer; font-weight: 700; width: 100%; margin-top: 12px; font-size: 13px;
+}
+.action-btn:hover { background: #004494; } /* 淇敼涓烘繁閭冩偓鍋滆摑 */
+
+/* ==========================================================================
+   5. 椤佃剼涓庢皵璞?(浣庤皟鐐圭紑)
+   ========================================================================== */
+.fixed-footer {
+    height: 35px; background: #ffffff; border-top: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+    font-size: 12px; color: #64748b; z-index: 1000;
+}
+#sys-status { display: flex; gap: 16px; font-weight: 500; }
+
+/* 姘旇薄鍖哄唴閮ㄥ厓绱犲井璋?*/
+#weather-monitor { font-size: 12px; color: rgba(255,255,255,0.92); display: flex; gap: 10px; font-weight: 600; align-items: center; white-space: nowrap; }
+
+/* 鍦板浘姘旀场瑕嗙洊 */
+.km-marker-tooltip {
+    background: #ffffff !important; color: #334155 !important;
+    border: 1px solid #0056b3 !important; font-weight: bold; font-size: 11px; /* 淇敼涓轰富棰樿摑 */
+    border-radius: 3px; padding: 2px 4px !important;
+}
+
+/* 浼樺寲鐗堬細灏嗗鍣ㄩ檺鍒跺湪 40px锛屽唴閮ㄥ厓绱犺嚜閫傚簲灞呬腑 */
+.custom-live-icon {
+    width: 80px !important;
+    height: 80px !important;
+    background: transparent !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.live-marker-wrapper {
+    position: relative;
+    width: 80px !important;
+    height: 80px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.live-emoji {
+    font-size: 30px !important; /* 鍥炬爣鏂囧瓧澶у皬 */
+    z-index: 20 !important;
+}
+
+.signal-pulse {
+    width: 50px !important;
+    height: 50px !important;
+    position: absolute !important;
+    border: 2px solid #0056b3;
+    border-radius: 50%;
+    animation: pulse-animation 2s infinite;
+}
+
+/* ==========================================================================
+   6. 绉诲姩绔Е鎺т紭鍖栦笌濯掍綋鏌ヨ (Mobile & Tablet)
+   ========================================================================== */
+.mobile-overlay {
+    display: none;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 45; /* 鍦板浘涔嬩笂锛岄潰鏉夸箣涓?*/
+}
+.mobile-overlay.active { display: block; }
+
+@media (max-width: 768px) {
+    /* 澶撮儴娴佸紡鎶樺彔 */
+    .fixed-header { 
+        flex-direction: column; 
+        height: auto; 
+        padding: 10px; 
+        gap: 10px; 
+        align-items: stretch; 
+    }
+    
+    .mobile-only-btn {
+        display: flex; align-items: center; justify-content: center;
+        background: transparent; border: none; color: white;
+        padding: 4px; margin-right: 12px; cursor: pointer;
+    }
+    .mobile-only-btn:active { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+    .header-left, .header-center, .header-right { 
+        width: 100%; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+    }
+    .header-center { order: -1; justify-content: flex-start; }
+    
+    #event-name { font-size: 20px; white-space: normal; line-height: 1.2; }
+    #weather-monitor { display: none; } /* 灏忓睆闅愯棌姘斿€欓潰鏉胯吘鍑虹┖闂?*/
+    
+    /* 宸︿晶璁惧鍒楄〃鍙樹负渚ц竟鎶藉眽 */
+    .float-sidebar-left {
+        top: 0; bottom: 0; left: -110%; 
+        width: 85%; max-width: 320px; 
+        border-radius: 0; 
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+        z-index: 50;
+    }
+    .float-sidebar-left.mobile-open { left: 0; }
+    
+    /* 鍙充晶璇︽儏闈㈡澘鍙樹负搴曢儴涓婃粦鎶藉眽 (Bottom Sheet) */
+    .sidebar-right {
+        top: auto; bottom: -110%; right: 0; 
+        width: 100%; max-height: 85vh; 
+        border-radius: 16px 16px 0 0; 
+        transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+        z-index: 60;
+    }
+    .sidebar-right.active { bottom: 0; right: 0; }
+    
+    .fixed-footer { flex-wrap: wrap; height: auto; padding: 10px; gap: 10px; justify-content: center; }
+    
+    /* 寮哄埗閲嶅啓杈撳叆妗嗗瓧鍙烽槻 iOS 鑷姩缂╂斁 */
+    input, select, textarea, button { font-size: 16px !important; }
+    .filter-item { padding: 8px 12px; font-size: 14px; }
+    .nav-item { padding: 8px 12px; font-size: 14px; }
+}
+/* ================= 平台亮/暗主题（覆盖 RTLS 各小模块） ================= */
+html[data-theme] body.light-theme {
+    background-color: var(--pt-bg, #f4f6f9);
+    color: var(--pt-text-2, #334155);
+}
+html[data-theme] .fixed-header {
+    background: var(--pt-header, #0056b3);
+    border-bottom-color: var(--pt-header-2, #004494);
+    box-shadow: 0 2px 10px var(--pt-shadow, rgba(0, 86, 179, 0.25));
+}
+html[data-theme] .nav-item.active {
+    background: var(--pt-nav-active-bg, #fff);
+    color: var(--pt-nav-active-fg, #0056b3) !important;
+}
+html[data-theme] .float-sidebar-left,
+html[data-theme] .sidebar-right,
+html[data-theme] .fixed-footer {
+    background: var(--pt-panel, #ffffff) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+    color: var(--pt-text-2, #334155) !important;
+    box-shadow: 0 4px 16px var(--pt-shadow, rgba(0,0,0,0.08));
+}
+html[data-theme] .panel-header,
+html[data-theme] .sidebar-header {
+    background: var(--pt-panel-2, #f8fafc) !important;
+    border-bottom-color: var(--pt-border, #e2e8f0) !important;
+    color: var(--pt-text, #1e293b) !important;
+}
+html[data-theme] .panel-title,
+html[data-theme] .sidebar-header h3 {
+    color: var(--pt-text, #1e293b) !important;
+}
+html[data-theme] .stats-badge {
+    background: var(--pt-panel, #fff) !important;
+    color: var(--pt-muted, #64748b) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+}
+html[data-theme] .stats-badge .divider { color: var(--pt-border-soft, #cbd5e1) !important; }
+html[data-theme] .filter-panel {
+    background: var(--pt-panel, #fff) !important;
+    border-bottom-color: var(--pt-border, #e2e8f0) !important;
+}
+html[data-theme] .filter-item {
+    background: var(--pt-panel-2, #f1f5f9) !important;
+    color: var(--pt-text-2, #475569) !important;
+    border-color: transparent;
+}
+html[data-theme] .filter-item:has(input:checked) {
+    background: rgba(18, 112, 196, 0.16) !important;
+    border-color: rgba(18, 112, 196, 0.45) !important;
+    color: var(--pt-accent, #0056b3) !important;
+}
+html[data-theme] #device-list .card,
+html[data-theme] .card {
+    background: var(--pt-panel, #fff) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+    color: var(--pt-text-2, #334155) !important;
+}
+html[data-theme] .card:hover {
+    border-color: var(--pt-accent, #0056b3) !important;
+    background: var(--pt-hover, #fdfefe) !important;
+}
+html[data-theme] .card h4 { color: var(--pt-text, #1e293b) !important; }
+html[data-theme] .card p { color: var(--pt-muted, #64748b) !important; }
+html[data-theme] .role-badge {
+    background: var(--pt-panel-2, #f1f5f9) !important;
+    color: var(--pt-muted, #64748b) !important;
+}
+html[data-theme] .close-btn { color: var(--pt-muted, #94a3b8) !important; }
+html[data-theme] .close-btn:hover { color: var(--pt-text, #334155) !important; }
+html[data-theme] .info-label { color: var(--pt-muted, #64748b) !important; }
+html[data-theme] .info-value { color: var(--pt-text, #1e293b) !important; }
+html[data-theme] .ui-divider { background: var(--pt-border, #e2e8f0) !important; }
+html[data-theme] .remark-title { color: var(--pt-text-2, #475569) !important; }
+html[data-theme] #info-remark {
+    background: var(--pt-input-bg, #f8fafc) !important;
+    border-color: var(--pt-border, #cbd5e1) !important;
+    color: var(--pt-text, #1e293b) !important;
+}
+html[data-theme] #info-remark:focus { border-color: var(--pt-accent, #0056b3) !important; }
+html[data-theme] .action-btn {
+    background: var(--pt-accent, #0056b3) !important;
+    color: #fff !important;
+}
+html[data-theme] .action-btn:hover { background: var(--pt-header-2, #004494) !important; }
+html[data-theme] .fixed-footer select,
+html[data-theme] #marker-interval {
+    background: var(--pt-input-bg, #fff) !important;
+    color: var(--pt-text, #1e293b) !important;
+    border: 1px solid var(--pt-border, #e2e8f0);
+    border-radius: 4px;
+}
+html[data-theme] .text-blue { color: var(--pt-accent, #0056b3) !important; }
+html[data-theme] .km-marker-tooltip {
+    background: var(--pt-panel, #fff) !important;
+    color: var(--pt-text, #334155) !important;
+    border-color: var(--pt-accent, #0056b3) !important;
+}
+html[data-theme] .leaflet-popup-content-wrapper,
+html[data-theme] .leaflet-popup-tip {
+    background: var(--pt-panel, #fff) !important;
+    color: var(--pt-text-2, #334155) !important;
+    box-shadow: 0 4px 16px var(--pt-shadow, rgba(0,0,0,0.15));
+}
+html[data-theme] .rtls-popup-divider { background: var(--pt-border, #e2e8f0) !important; }
+html[data-theme] .rtls-popup-body { color: var(--pt-muted, #475569) !important; }
+html[data-theme] .rtls-popup-label { color: var(--pt-text, #1e293b) !important; }
+html[data-theme] .rtls-popup-remark {
+    background: var(--pt-panel-2, #f8fafc) !important;
+    border-color: var(--pt-border, #e2e8f0) !important;
+    color: var(--pt-text-2, #334155) !important;
+}
+html[data-theme="dark"] .admin-btn { color: #9cc7ff; }
+html[data-theme="dark"] .leaflet-container { background: #1a2332; }
+html[data-theme="dark"] .leaflet-control-zoom a {
+    background: var(--pt-panel) !important;
+    color: var(--pt-text) !important;
+    border-color: var(--pt-border) !important;
+}
+html[data-theme="dark"] .leaflet-control-attribution {
+    background: rgba(28, 39, 56, 0.85) !important;
+    color: var(--pt-muted) !important;
+}
+html[data-theme="dark"] .filter-item:has(input:checked) {
+    background: rgba(18, 112, 196, 0.28) !important;
+    color: #9cc7ff !important;
+}
+html[data-theme="dark"] .card:hover {
+    background: var(--pt-hover, #243044) !important;
+}

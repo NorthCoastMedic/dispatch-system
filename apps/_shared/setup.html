@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首次安装</title>
+    <style>
+        :root { --accent:#0056b3; --bg:#f4f7f6; --card:#fff; --text:#222; --muted:#667; --line:#e3e8ee; --err:#dc3545; }
+        * { box-sizing: border-box; }
+        body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); }
+        .wrap { max-width:720px; margin:32px auto 64px; padding:0 16px; }
+        h1 { font-size:22px; margin:0 0 8px; color:var(--accent); }
+        .lead { color:var(--muted); margin:0 0 24px; font-size:14px; }
+        form { background:var(--card); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.06); padding:28px; }
+        fieldset { border:1px solid var(--line); border-radius:10px; margin:0 0 20px; padding:16px 16px 8px; }
+        legend { font-weight:700; padding:0 8px; color:var(--accent); }
+        .hint { font-size:12px; color:var(--muted); margin:-4px 0 12px; }
+        label { display:block; font-size:13px; margin:0 0 4px; }
+        input { width:100%; padding:10px 12px; margin-bottom:12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+        input:focus { outline:none; border-color:var(--accent); }
+        .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        @media (max-width:640px) { .row { grid-template-columns:1fr; } }
+        .err { background:#ffe6e6; color:var(--err); padding:10px 12px; border-radius:8px; margin-bottom:16px; font-size:14px; }
+        button { width:100%; padding:14px; background:var(--accent); color:#fff; border:0; border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; }
+        button:disabled { opacity:.6; cursor:wait; }
+        .ok { background:var(--card); border-radius:12px; padding:40px 28px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.06); }
+        .ok h2 { color:var(--accent); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>首次安装</h1>
+    <p class="lead">只需这一次。填组织名称、管理员和数据库，表由系统自动创建。完成后请重新运行 <code>npm start</code> 再登录。</p>
+    {{ERROR}}
+    <form method="POST" action="/setup.php" id="setup-form">
+        <input type="hidden" name="csrf_token" value="{{CSRF}}">
+
+        <fieldset>
+            <legend>组织名称</legend>
+            <p class="hint">对应系统设置 → 系统信息，以后仍可在后台改。</p>
+            <label>内部平台名称（顶栏）</label>
+            <input name="internal_platform_name" required placeholder="例如：某某救援内部平台">
+            <label>登录页标题</label>
+            <input name="login_title" required placeholder="例如：成员登录">
+            <div class="row">
+                <div>
+                    <label>响应终端标题</label>
+                    <input name="rms_terminal_title" required placeholder="例如：现场响应终端">
+                </div>
+                <div>
+                    <label>状态展示页标题</label>
+                    <input name="rms_display_title" required placeholder="例如：调度状态展示">
+                </div>
+            </div>
+            <label>组织信息公开网站网址</label>
+            <input name="public_site_url" type="url" required placeholder="https://">
+            <label>公开网站链接文案</label>
+            <input name="public_site_label" required placeholder="例如：组织信息公开网站">
+            <label>页脚版权行</label>
+            <input name="footer_copyright" required placeholder="例如：© 2026 组织名称. 保留所有权利。">
+            <label>页脚标语（可留空）</label>
+            <input name="footer_motto" placeholder="例如：时间就是生命">
+        </fieldset>
+
+        <fieldset>
+            <legend>管理员账号</legend>
+            <label>用户名</label>
+            <input name="admin_username" required autocomplete="username" placeholder="自行设定">
+            <div class="row">
+                <div>
+                    <label>密码（至少 8 位）</label>
+                    <input name="admin_password" type="password" required minlength="8" autocomplete="new-password">
+                </div>
+                <div>
+                    <label>确认密码</label>
+                    <input name="admin_password2" type="password" required minlength="8" autocomplete="new-password">
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>MySQL（门户 + RMS 共用主库）</legend>
+            <p class="hint">请使用有建库权限的账号。主库给登录/档案/调度；RTLS 可另填库名，仍用这台 MySQL。</p>
+            <div class="row">
+                <div>
+                    <label>主机</label>
+                    <input name="db_host" required placeholder="数据库服务器地址">
+                </div>
+                <div>
+                    <label>端口</label>
+                    <input name="db_port" inputmode="numeric" placeholder="3306">
+                </div>
+            </div>
+            <div class="row">
+                <div>
+                    <label>用户名</label>
+                    <input name="db_user" required>
+                </div>
+                <div>
+                    <label>密码</label>
+                    <input name="db_password" type="password" autocomplete="off">
+                </div>
+            </div>
+            <div class="row">
+                <div>
+                    <label>主库名（门户 + RMS）</label>
+                    <input name="db_name" required placeholder="仅字母数字下划线">
+                </div>
+                <div>
+                    <label>RTLS 库名</label>
+                    <input name="rtls_db_name" required placeholder="仅字母数字下划线">
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>WBGT PostgreSQL（可选）</legend>
+            <p class="hint">不需要热环境模块可全部留空，以后再配。</p>
+            <div class="row">
+                <div>
+                    <label>主机</label>
+                    <input name="pg_host" placeholder="留空则跳过">
+                </div>
+                <div>
+                    <label>端口</label>
+                    <input name="pg_port" inputmode="numeric" placeholder="5432">
+                </div>
+            </div>
+            <div class="row">
+                <div>
+                    <label>用户名</label>
+                    <input name="pg_user">
+                </div>
+                <div>
+                    <label>密码</label>
+                    <input name="pg_password" type="password" autocomplete="off">
+                </div>
+            </div>
+            <label>数据库名</label>
+            <input name="pg_database" placeholder="仅字母数字下划线">
+        </fieldset>
+
+        <fieldset>
+            <legend>其它（可选）</legend>
+            <div class="row">
+                <div>
+                    <label>网站端口</label>
+                    <input name="port" inputmode="numeric" placeholder="12000">
+                </div>
+                <div>
+                    <label>MQTT 地址（RTLS / WBGT）</label>
+                    <input name="mqtt_broker" placeholder="例如 mqtt://主机:1883">
+                </div>
+            </div>
+        </fieldset>
+
+        <button type="submit">创建数据库表并完成安装</button>
+    </form>
+</div>
+<script>
+document.getElementById('setup-form').addEventListener('submit', function () {
+    var btn = this.querySelector('button');
+    btn.disabled = true;
+    btn.textContent = '正在安装…';
+});
+</script>
+</body>
+</html>

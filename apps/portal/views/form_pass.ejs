@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+<style>
+    .form-wrapper { display: flex; justify-content: center; align-items: center; flex: 1; padding: 20px; }
+    .form-card { background: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 400px; text-align: center; }
+    .form-card h2 { color: #0056b3; margin-bottom: 25px; font-weight: bold; }
+    .form-input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; box-sizing: border-box; outline: none; transition: border 0.3s; }
+    .form-input:focus { border-color: #0056b3; }
+    .btn-save { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; margin-top: 10px; }
+    .btn-save:hover { background: #218838; }
+    .msg { padding: 12px; margin-bottom: 20px; border-radius: 6px; font-size: 14px; }
+    .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+</style>
+<main class="form-wrapper">
+    <div class="form-card">
+        <h2>修改系统密码</h2>
+        <% if (message) { %><div class="msg success"><%= message %></div><% } %>
+        <% if (error) { %><div class="msg error"><%= error %></div><% } %>
+        <form method="POST" action="/form_pass.php">
+            <input type="hidden" name="csrf_token" value="<%= csrf %>">
+            <input type="password" name="old_password" class="form-input" placeholder="请输入当前旧密码" required autocomplete="current-password">
+            <input type="password" name="new_password" class="form-input" placeholder="请输入新密码（至少 8 位）" required minlength="8" autocomplete="new-password">
+            <input type="password" name="confirm_password" class="form-input" placeholder="请再次确认新密码" required minlength="8" autocomplete="new-password">
+            <button type="submit" class="btn-save">验证并更新密码</button>
+        </form>
+    </div>
+</main>
+<%- include('partials/footer') %>

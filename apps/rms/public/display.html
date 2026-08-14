@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme-default="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调度状态展示</title>
+    <script>
+    (function () {
+        var k = 'rms_theme';
+        var d = document.documentElement.getAttribute('data-theme-default') || 'light';
+        try {
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark') ? t : d);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', d);
+        }
+        document.documentElement.classList.add('rms-themed');
+    })();
+    </script>
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/platform/topnav.css?v=20260814c">
+    <script src="/platform/topnav.js?v=20260814c" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css?v=20260814l">
+    <link rel="stylesheet" href="css/theme.css?v=20260814l">
+    <script src="js/theme.js?v=20260814g" defer></script>
+</head>
+<body class="display-wall">
+
+    <header class="dw-header">
+        <div class="dw-header-main">
+            <div class="dw-brand">
+                <h1 data-brand="rms_display_title" data-brand-title="rms_display_title">调度状态展示</h1>
+                <p class="dw-subtitle">实时态势监视</p>
+            </div>
+            <div id="header-clock" class="dw-clock">--:--:--</div>
+        </div>
+        <div class="dw-header-actions">
+            <div data-rms-theme-slot class="rms-theme-toggle-wrap"></div>
+            <div class="dw-account relative">
+                <button id="username-btn" type="button" class="dw-account-btn" title="账号与导航">
+                    <span id="header-username">管理员</span>
+                    <svg class="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div id="user-dropdown" data-ptn="rms" class="hidden absolute right-0 mt-2 w-52 bg-white text-gray-800 rounded-xl shadow-2xl border z-40 overflow-hidden">
+                    <button id="logout-btn" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium">
+                        退出登录
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div id="display-readonly-banner" class="dw-banner" data-brand-show="rms_display_banner_enabled">
+        只读展示屏 · 调度操作请到「调度指挥台」
+    </div>
+
+    <section class="dw-kpis" aria-label="关键指标">
+        <div class="dw-kpi">
+            <span class="dw-kpi-label">在线</span>
+            <span id="stat-online-users" class="dw-kpi-value">0</span>
+        </div>
+        <div class="dw-kpi is-standby">
+            <span class="dw-kpi-label">待命</span>
+            <span id="stat-available-users" class="dw-kpi-value">0</span>
+        </div>
+        <div class="dw-kpi is-busy">
+            <span class="dw-kpi-label">响应中</span>
+            <span id="stat-busy-users" class="dw-kpi-value">0</span>
+        </div>
+        <div class="dw-kpi is-events">
+            <span class="dw-kpi-label">进行中事件</span>
+            <span id="stat-active-events" class="dw-kpi-value">0</span>
+        </div>
+    </section>
+
+    <section class="dw-stats" id="dw-stats" aria-label="事件统计">
+        <div class="dw-stats-toolbar">
+            <div class="dw-stats-title">事件统计</div>
+            <div class="dw-scope-tabs" id="chart-scope-tabs" role="tablist">
+                <button type="button" class="dw-scope-tab is-active" data-scope="active">进行中</button>
+                <button type="button" class="dw-scope-tab" data-scope="completed">已完成</button>
+                <button type="button" class="dw-scope-tab" data-scope="all">全部</button>
+            </div>
+            <div class="dw-stats-meta" id="chart-scope-meta">0 件</div>
+        </div>
+        <div class="dw-charts" id="dw-charts">
+            <div class="dw-panel dw-chart-panel">
+                <div class="dw-panel-hd">
+                    <h2>类型分布</h2>
+                </div>
+                <div id="chart-event-type" class="dw-chart-canvas"></div>
+            </div>
+            <div class="dw-panel dw-chart-panel">
+                <div class="dw-panel-hd">
+                    <h2>优先级</h2>
+                </div>
+                <div id="chart-event-priority" class="dw-chart-canvas"></div>
+            </div>
+        </div>
+        <div class="dw-charts-empty" id="dw-charts-empty">暂无事件</div>
+    </section>
+
+    <main class="dw-main">
+        <section class="dw-panel">
+            <div class="dw-panel-hd">
+                <h2>人员状态</h2>
+                <div id="personnel-agency-filters" class="dw-filters">
+                    <button type="button" data-agency="" class="agency-filter-btn is-active">全部</button>
+                </div>
+            </div>
+            <div id="personnel-list" class="dw-panel-bd"></div>
+        </section>
+
+        <section class="dw-panel">
+            <div class="dw-panel-hd">
+                <h2>进行中事件</h2>
+            </div>
+            <div id="admin-events-list" class="dw-panel-bd"></div>
+        </section>
+
+        <section class="dw-panel dw-panel-done">
+            <div class="dw-panel-hd">
+                <h2>已完成</h2>
+            </div>
+            <div id="admin-completed-events-list" class="dw-panel-bd"></div>
+        </section>
+    </main>
+
+    <!-- 事件详情（只读，点事件可看） -->
+    <div id="drawer-event-detail" class="fixed inset-0 z-[55] hidden" aria-hidden="true">
+        <div id="drawer-event-backdrop" class="absolute inset-0 bg-black/45"></div>
+        <aside class="dw-drawer absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl flex flex-col">
+            <div class="flex items-start justify-between gap-3 px-5 py-4 border-b bg-[#0056b3] text-white">
+                <div class="min-w-0">
+                    <div class="text-xs text-blue-100 font-semibold">事件详情</div>
+                    <h3 id="ed-title" class="text-lg font-bold mt-0.5 truncate">—</h3>
+                </div>
+                <button type="button" id="btn-close-event-drawer" class="shrink-0 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-bold">关闭</button>
+            </div>
+            <div id="ed-body" class="flex-1 overflow-y-auto px-5 py-4 space-y-5 text-sm">
+                <div class="text-center text-gray-400 py-10">加载中…</div>
+            </div>
+        </aside>
+    </div>
+
+    <audio id="alarm-audio" src="sounds/alarm.mp3" preload="auto"></audio>
+
+    <script src="/platform/branding.js?v=20260813c"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="js/common.js?v=20260814s" defer></script>
+    <script src="js/display.js?v=20260814k" defer></script>
+</body>
+</html>

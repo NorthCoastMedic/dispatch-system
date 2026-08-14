@@ -1,0 +1,553 @@
+<%- include('partials/header') %>
+<style>
+    .settings-wrap { max-width: 980px; margin: 28px auto; padding: 0 20px 40px; }
+    .settings-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .settings-tabs {
+        background: #fff; border: 1px solid #eee; border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 10px; position: sticky; top: 16px;
+    }
+    .settings-tab {
+        display: block; width: 100%; text-align: left; border: 1px solid transparent;
+        background: transparent; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px;
+        font-size: 14px; font-weight: 700; color: #445; cursor: pointer;
+    }
+    .settings-tab:hover { background: #f4f8fc; }
+    .settings-tab.active { background: #e8f1fb; color: #0056b3; border-color: #c9ddf5; }
+    .settings-tab small { display: block; font-size: 11px; font-weight: 500; color: #888; margin-top: 2px; }
+    .settings-panel { display: none; }
+    .settings-panel.active { display: block; }
+    .settings-card { background: #fff; border: 1px solid #eee; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 22px; }
+    .settings-card h3 { margin: 0 0 6px; color: #0056b3; font-size: 18px; }
+    .settings-card .cat-desc { margin: 0 0 16px; color: #777; font-size: 13px; }
+    .subtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .subtab {
+        border: 1px solid #dbe5f0; background: #f8fafc; color: #445; border-radius: 999px;
+        padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .subtab.active { background: #0056b3; border-color: #0056b3; color: #fff; }
+    .settings-section { display: none; margin-top: 4px; }
+    .settings-section.active { display: block; }
+    .settings-section h4 { margin: 0 0 6px; font-size: 16px; color: #222; }
+    .settings-section .sec-desc { margin: 0 0 14px; color: #888; font-size: 12px; line-height: 1.5; }
+    .sla-group { background: #f8fafc; border: 1px solid #e8eef5; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+    .sla-group h5 { margin: 0 0 12px; font-size: 14px; color: #0056b3; }
+    .sla-rows { display: flex; flex-direction: column; gap: 10px; }
+    .sla-row { display: grid; grid-template-columns: 88px 1fr 1fr 1fr; gap: 10px; align-items: end; }
+    .sla-row .prio-label { font-size: 13px; font-weight: 700; color: #444; padding-bottom: 10px; }
+    .field { margin-bottom: 16px; }
+    .field.compact { margin-bottom: 0; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
+    .field input, .field textarea, .field select {
+        width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #ddd;
+        border-radius: 8px; font-size: 14px; outline: none; background: #fff;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: #0056b3; }
+    .field-with-unit { position: relative; }
+    .field-with-unit input { padding-right: 42px; }
+    .field-with-unit .unit {
+        position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+        font-size: 12px; color: #999; pointer-events: none;
+    }
+    .settings-actions {
+        display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+        margin-top: 16px; background: #fff; border: 1px solid #eee; border-radius: 12px;
+        padding: 14px 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    .settings-actions .btn-save {
+        background: #0056b3; color: #fff; border: none; border-radius: 8px;
+        padding: 12px 22px; font-size: 15px; font-weight: bold; cursor: pointer;
+    }
+    .settings-actions .btn-save:hover { background: #004494; }
+    .settings-msg { font-size: 14px; }
+    .settings-msg.ok { color: #198754; }
+    .settings-msg.err { color: #dc3545; }
+    .settings-hint { font-size: 12px; color: #888; margin-top: 12px; line-height: 1.5; }
+    .nav-editor-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .nav-editor-toolbar button {
+        border: 1px solid #d0d7e2; background: #f8fafc; border-radius: 8px;
+        padding: 8px 12px; font-size: 13px; font-weight: 700; cursor: pointer; color: #334;
+    }
+    .nav-editor-toolbar button:hover { background: #eef4fb; }
+    .nav-item-card {
+        border: 1px solid #e5eaf1; border-radius: 10px; padding: 12px; margin-bottom: 10px; background: #fbfdff;
+    }
+    .nav-item-hd { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .nav-item-hd .idx { font-size: 12px; font-weight: 700; color: #0056b3; }
+    .nav-item-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .nav-item-actions button {
+        border: 1px solid #d5dde8; background: #fff; border-radius: 6px;
+        padding: 4px 8px; font-size: 12px; cursor: pointer; color: #445;
+    }
+    .nav-item-actions button.danger { color: #b42318; border-color: #f0c2c0; }
+    .nav-grid-fields { display: grid; grid-template-columns: 90px 1fr 1fr; gap: 10px; }
+    .nav-grid-fields-2 { display: grid; grid-template-columns: 1fr 140px 140px; gap: 10px; margin-top: 10px; }
+    .nav-checks { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: #445; }
+    .nav-checks label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+    @media (max-width: 860px) {
+        .settings-layout { grid-template-columns: 1fr; }
+        .settings-tabs { position: static; display: flex; gap: 8px; overflow-x: auto; }
+        .settings-tab { white-space: nowrap; margin-bottom: 0; min-width: max-content; }
+        .settings-tab small { display: none; }
+        .sla-row { grid-template-columns: 1fr; }
+        .sla-row .prio-label { padding-bottom: 0; }
+        .nav-grid-fields, .nav-grid-fields-2 { grid-template-columns: 1fr; }
+    }
+</style>
+<main>
+    <div class="settings-wrap">
+        <div class="flex-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap;">
+            <h2 style="margin:0;color:#0056b3;">系统设置</h2>
+            <a href="dashboard.php" class="btn" style="background:#6c757d;color:white;text-decoration:none;padding:8px 14px;border-radius:8px;font-size:14px;">返回导航页</a>
+        </div>
+
+        <form id="system-settings-form" novalidate>
+            <div class="settings-layout">
+                <nav class="settings-tabs" id="settings-cat-tabs" aria-label="设置分类">
+                    <% Object.keys(categories).forEach(function (catKey, idx) {
+                        var cat = categories[catKey];
+                    %>
+                    <button type="button" class="settings-tab<%= idx === 0 ? ' active' : '' %>" data-cat-tab="<%= catKey %>">
+                        <%= cat.label %>
+                        <% if (cat.description) { %><small><%= cat.description %></small><% } %>
+                    </button>
+                    <% }) %>
+                </nav>
+
+                <div class="settings-panels">
+                    <% Object.keys(categories).forEach(function (catKey, idx) {
+                        var cat = categories[catKey];
+                        var values = (settings && settings[catKey]) || {};
+                    %>
+                    <section class="settings-panel<%= idx === 0 ? ' active' : '' %>" data-category="<%= catKey %>">
+                        <div class="settings-card">
+                            <h3><%= cat.label %></h3>
+                            <% if (cat.description) { %><p class="cat-desc"><%= cat.description %></p><% } %>
+
+                            <% if (cat.fields) {
+                                Object.keys(cat.fields).forEach(function (fieldKey) {
+                                    var field = cat.fields[fieldKey];
+                                    var val = values[fieldKey] != null ? values[fieldKey] : field.default;
+                                    if (field.type === 'nav_items') {
+                            %>
+                            <div class="field">
+                                <label>导航卡片（可改图标 / 名称 / 简介 / 跳转，并调整排序）</label>
+                                <div class="nav-editor-toolbar">
+                                    <button type="button" id="btn-nav-add">添加卡片</button>
+                                    <button type="button" id="btn-nav-reset">恢复默认导航</button>
+                                </div>
+                                <div id="nav-items-editor"></div>
+                                <textarea
+                                    id="f-nav-nav_items"
+                                    data-cat="nav"
+                                    data-key="nav_items"
+                                    hidden
+                                ><%= val %></textarea>
+                                <p style="margin:8px 0 0;font-size:12px;color:#888;line-height:1.5;">
+                                    「仅管理员」卡片普通用户不可见；「启用」关闭后所有人都不显示。外链请勾选新窗口打开。
+                                </p>
+                            </div>
+                            <% } else if (field.type === 'toggle') {
+                                var opts = field.options || [
+                                    { value: '1', label: '打开' },
+                                    { value: '0', label: '关闭' }
+                                ];
+                            %>
+                            <div class="field">
+                                <label for="f-<%= catKey %>-<%= fieldKey %>"><%= field.label %></label>
+                                <select
+                                    id="f-<%= catKey %>-<%= fieldKey %>"
+                                    data-cat="<%= catKey %>"
+                                    data-key="<%= fieldKey %>"
+                                >
+                                    <% opts.forEach(function (opt) { %>
+                                    <option value="<%= opt.value %>"<%= String(val) === String(opt.value) ? ' selected' : '' %>><%= opt.label %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <% } else { %>
+                            <div class="field">
+                                <label for="f-<%= catKey %>-<%= fieldKey %>"><%= field.label %></label>
+                                <input
+                                    type="<%= field.type === 'url' ? 'url' : (field.type === 'number' ? 'number' : 'text') %>"
+                                    id="f-<%= catKey %>-<%= fieldKey %>"
+                                    name="<%= catKey %>.<%= fieldKey %>"
+                                    data-cat="<%= catKey %>"
+                                    data-key="<%= fieldKey %>"
+                                    value="<%= val %>"
+                                    <% if (field.type === 'number') { %>min="<%= field.min != null ? field.min : 1 %>" max="<%= field.max != null ? field.max : 1440 %>" step="1"<% } %>
+                                    required
+                                >
+                            </div>
+                            <% } %>
+                            <% }); } %>
+
+                            <% if (cat.sections) {
+                                var secKeys = Object.keys(cat.sections);
+                            %>
+                            <div class="subtabs" data-subtabs-for="<%= catKey %>">
+                                <% secKeys.forEach(function (secKey, sidx) {
+                                    var section = cat.sections[secKey];
+                                %>
+                                <button type="button" class="subtab<%= sidx === 0 ? ' active' : '' %>" data-section-tab="<%= secKey %>"><%= section.label %></button>
+                                <% }) %>
+                            </div>
+                            <% secKeys.forEach(function (secKey, sidx) {
+                                var section = cat.sections[secKey];
+                            %>
+                            <div class="settings-section<%= sidx === 0 ? ' active' : '' %>" data-section="<%= secKey %>">
+                                <h4><%= section.label %></h4>
+                                <% if (section.description) { %><p class="sec-desc"><%= section.description %></p><% } %>
+
+                                <% if (section.groups) {
+                                    Object.keys(section.groups).forEach(function (groupKey) {
+                                        var group = section.groups[groupKey];
+                                        var fieldKeys = Object.keys(group.fields || {});
+                                        var levels = [
+                                            { id: 'high', label: '高优先级' },
+                                            { id: 'mid', label: '中优先级' },
+                                            { id: 'low', label: '低优先级' }
+                                        ];
+                                %>
+                                <div class="sla-group">
+                                    <h5><%= group.label %></h5>
+                                    <div class="sla-rows">
+                                        <% levels.forEach(function (lv) {
+                                            var warnKey = fieldKeys.find(function (k) { return k.indexOf('_' + lv.id + '_warn') !== -1; });
+                                            var timeoutKey = fieldKeys.find(function (k) { return k.indexOf('_' + lv.id + '_timeout') !== -1; });
+                                            var repeatKey = fieldKeys.find(function (k) { return k.indexOf('_' + lv.id + '_repeat') !== -1; });
+                                            if (!warnKey || !timeoutKey) return;
+                                            var warnField = group.fields[warnKey];
+                                            var timeoutField = group.fields[timeoutKey];
+                                            var repeatField = repeatKey ? group.fields[repeatKey] : null;
+                                            var warnVal = values[warnKey] != null ? values[warnKey] : warnField.default;
+                                            var timeoutVal = values[timeoutKey] != null ? values[timeoutKey] : timeoutField.default;
+                                            var repeatVal = repeatField
+                                                ? (values[repeatKey] != null ? values[repeatKey] : repeatField.default)
+                                                : '0';
+                                        %>
+                                        <div class="sla-row">
+                                            <div class="prio-label"><%= lv.label %></div>
+                                            <div class="field compact">
+                                                <label for="f-<%= catKey %>-<%= warnKey %>">预告</label>
+                                                <div class="field-with-unit">
+                                                    <input type="number" id="f-<%= catKey %>-<%= warnKey %>" data-cat="<%= catKey %>" data-key="<%= warnKey %>" value="<%= warnVal %>" min="<%= warnField.min != null ? warnField.min : 1 %>" max="<%= warnField.max != null ? warnField.max : 1440 %>" step="1" required>
+                                                    <span class="unit">分钟</span>
+                                                </div>
+                                            </div>
+                                            <div class="field compact">
+                                                <label for="f-<%= catKey %>-<%= timeoutKey %>">超时</label>
+                                                <div class="field-with-unit">
+                                                    <input type="number" id="f-<%= catKey %>-<%= timeoutKey %>" data-cat="<%= catKey %>" data-key="<%= timeoutKey %>" value="<%= timeoutVal %>" min="<%= timeoutField.min != null ? timeoutField.min : 1 %>" max="<%= timeoutField.max != null ? timeoutField.max : 1440 %>" step="1" required>
+                                                    <span class="unit">分钟</span>
+                                                </div>
+                                            </div>
+                                            <% if (repeatKey && repeatField) { %>
+                                            <div class="field compact">
+                                                <label for="f-<%= catKey %>-<%= repeatKey %>">超时后重复</label>
+                                                <div class="field-with-unit">
+                                                    <input type="number" id="f-<%= catKey %>-<%= repeatKey %>" data-cat="<%= catKey %>" data-key="<%= repeatKey %>" value="<%= repeatVal %>" min="<%= repeatField.min != null ? repeatField.min : 0 %>" max="<%= repeatField.max != null ? repeatField.max : 1440 %>" step="1" required title="0 = 超时只提醒一次">
+                                                    <span class="unit">分钟</span>
+                                                </div>
+                                            </div>
+                                            <% } %>
+                                        </div>
+                                        <% }) %>
+                                    </div>
+                                </div>
+                                <% }); } %>
+
+                                <% if (section.fields) {
+                                    Object.keys(section.fields).forEach(function (fieldKey) {
+                                        var field = section.fields[fieldKey];
+                                        var val = values[fieldKey] != null ? values[fieldKey] : field.default;
+                                %>
+                                <div class="field">
+                                    <label for="f-<%= catKey %>-<%= fieldKey %>"><%= field.label %></label>
+                                    <% if (field.type === 'toggle' || field.type === 'select') {
+                                        var opts = field.options || [
+                                            { value: '1', label: '打开' },
+                                            { value: '0', label: '关闭' }
+                                        ];
+                                    %>
+                                    <select id="f-<%= catKey %>-<%= fieldKey %>" data-cat="<%= catKey %>" data-key="<%= fieldKey %>">
+                                        <% opts.forEach(function (opt) { %>
+                                        <option value="<%= opt.value %>"<%= String(val) === String(opt.value) ? ' selected' : '' %>><%= opt.label %></option>
+                                        <% }) %>
+                                    </select>
+                                    <% if (fieldKey === 'rms_display_chart_scope_default') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">展示页统计图默认看哪一类事件；页面上仍可手动切换。</p>
+                                    <% } %>
+                                    <% if (fieldKey === 'rms_display_chart_rotate') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">打开后按间隔在「进行中 / 已完成 / 全部」之间轮换；适合大屏无人值守。</p>
+                                    <% } %>
+                                    <% if (fieldKey === 'rms_display_chart_skip_empty') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">开启后，自动轮换会跳过当前没有事件的范围（例如没有已完成事件就不停在「已完成」）。</p>
+                                    <% } %>
+                                    <% } else if (field.type === 'textarea') { %>
+                                    <textarea id="f-<%= catKey %>-<%= fieldKey %>" data-cat="<%= catKey %>" data-key="<%= fieldKey %>" rows="<%= field.rows || 5 %>" placeholder="<%= field.placeholder || '' %>" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;line-height:1.5;resize:vertical;"><%= val %></textarea>
+                                    <% if (fieldKey === 'agency_list') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">每行一个分区名称；保存后可在队员档案中选择。</p>
+                                    <% } %>
+                                    <% } else if (field.type === 'number') { %>
+                                    <div class="field-with-unit">
+                                        <input
+                                            type="number"
+                                            id="f-<%= catKey %>-<%= fieldKey %>"
+                                            data-cat="<%= catKey %>"
+                                            data-key="<%= fieldKey %>"
+                                            value="<%= val %>"
+                                            min="<%= field.min != null ? field.min : 1 %>"
+                                            max="<%= field.max != null ? field.max : 1440 %>"
+                                            step="1"
+                                            required
+                                        >
+                                        <% if (field.unit) { %><span class="unit"><%= field.unit %></span><% } %>
+                                    </div>
+                                    <% if (fieldKey === 'rms_display_chart_rotate_sec') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">仅在开启自动轮换时生效，建议 15～60 秒。</p>
+                                    <% } %>
+                                    <% } else { %>
+                                    <input
+                                        type="<%= field.type === 'url' ? 'url' : 'text' %>"
+                                        id="f-<%= catKey %>-<%= fieldKey %>"
+                                        data-cat="<%= catKey %>"
+                                        data-key="<%= fieldKey %>"
+                                        value="<%= val %>"
+                                        placeholder="<%= field.placeholder || '' %>"
+                                        <% if (fieldKey === 'wecom_webhook_url' || fieldKey === 'rms_firstaid_form_url') { %>inputmode="url" autocomplete="off"<% } %>
+                                    >
+                                    <% if (fieldKey === 'wecom_webhook_url') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">企业微信群机器人 Webhook 完整 URL；留空则使用 rms/.env。</p>
+                                    <% } %>
+                                    <% if (fieldKey === 'rms_firstaid_form_url') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">成员终端「急救表单」按钮跳转地址（腾讯问卷 / 飞书表单等均可）。</p>
+                                    <% } %>
+                                    <% } %>
+                                </div>
+                                <% }); } %>
+                            </div>
+                            <% }) %>
+                            <% } %>
+                        </div>
+                    </section>
+                    <% }) %>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button type="submit" class="btn-save">保存设置</button>
+                <span id="settings-msg" class="settings-msg" role="status"></span>
+            </div>
+            <p class="settings-hint">左侧切换分类编辑；RMS 内可再切换 SLA / 分区 / 企微。保存写入 org.settings。导航页排序即列表上下顺序。</p>
+        </form>
+    </div>
+</main>
+<script>
+(function () {
+    var form = document.getElementById('system-settings-form');
+    var msg = document.getElementById('settings-msg');
+    var DEFAULT_NAV = <%- JSON.stringify(navItems || []) %>;
+    var FACTORY_DEFAULT_NAV = <%- JSON.stringify(defaultNavItems || []) %>;
+
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function readNavFromEditor() {
+        var cards = document.querySelectorAll('#nav-items-editor .nav-item-card');
+        var list = [];
+        cards.forEach(function (card, idx) {
+            list.push({
+                id: (card.querySelector('[data-f="id"]') || {}).value || ('item_' + (idx + 1)),
+                icon: (card.querySelector('[data-f="icon"]') || {}).value || '',
+                title: (card.querySelector('[data-f="title"]') || {}).value || '',
+                desc: (card.querySelector('[data-f="desc"]') || {}).value || '',
+                href: (card.querySelector('[data-f="href"]') || {}).value || '',
+                target: (card.querySelector('[data-f="target"]') || {}).value || '_self',
+                accent: (card.querySelector('[data-f="accent"]') || {}).value || '',
+                admin_only: !!(card.querySelector('[data-f="admin_only"]') || {}).checked,
+                enabled: !!(card.querySelector('[data-f="enabled"]') || {}).checked
+            });
+        });
+        return list;
+    }
+
+    function syncNavHidden() {
+        var el = document.getElementById('f-nav-nav_items');
+        if (!el) return;
+        el.value = JSON.stringify(readNavFromEditor());
+    }
+
+    function renderNavEditor(items) {
+        var box = document.getElementById('nav-items-editor');
+        if (!box) return;
+        if (!items || !items.length) items = FACTORY_DEFAULT_NAV.slice();
+        box.innerHTML = items.map(function (item, idx) {
+            return (
+                '<div class="nav-item-card" data-idx="' + idx + '">' +
+                    '<div class="nav-item-hd">' +
+                        '<span class="idx">卡片 #' + (idx + 1) + '</span>' +
+                        '<div class="nav-item-actions">' +
+                            '<button type="button" data-act="up">上移</button>' +
+                            '<button type="button" data-act="down">下移</button>' +
+                            '<button type="button" data-act="dup">复制</button>' +
+                            '<button type="button" class="danger" data-act="del">删除</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="nav-grid-fields">' +
+                        '<div class="field compact"><label>图标</label><input data-f="icon" value="' + esc(item.icon) + '" maxlength="16" placeholder="如 📍"></div>' +
+                        '<div class="field compact"><label>名称</label><input data-f="title" value="' + esc(item.title) + '" maxlength="80" required></div>' +
+                        '<div class="field compact"><label>简介</label><input data-f="desc" value="' + esc(item.desc) + '" maxlength="200"></div>' +
+                    '</div>' +
+                    '<div class="nav-grid-fields-2">' +
+                        '<div class="field compact"><label>跳转地址</label><input data-f="href" value="' + esc(item.href) + '" maxlength="500" required></div>' +
+                        '<div class="field compact"><label>打开方式</label><select data-f="target"><option value="_self"' + (item.target === '_blank' ? '' : ' selected') + '>当前窗口</option><option value="_blank"' + (item.target === '_blank' ? ' selected' : '') + '>新窗口</option></select></div>' +
+                        '<div class="field compact"><label>强调色（可选）</label><input data-f="accent" value="' + esc(item.accent || '') + '" placeholder="#28a745"></div>' +
+                    '</div>' +
+                    '<input type="hidden" data-f="id" value="' + esc(item.id || ('item_' + (idx + 1))) + '">' +
+                    '<div class="nav-checks">' +
+                        '<label><input type="checkbox" data-f="enabled"' + (item.enabled === false ? '' : ' checked') + '> 启用</label>' +
+                        '<label><input type="checkbox" data-f="admin_only"' + (item.admin_only ? ' checked' : '') + '> 仅管理员可见</label>' +
+                    '</div>' +
+                '</div>'
+            );
+        }).join('');
+        syncNavHidden();
+    }
+
+    function bindNavEditor() {
+        var box = document.getElementById('nav-items-editor');
+        if (!box || box._bound) return;
+        box._bound = true;
+        box.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-act]');
+            if (!btn) return;
+            var card = btn.closest('.nav-item-card');
+            if (!card) return;
+            var list = readNavFromEditor();
+            var idx = Array.prototype.indexOf.call(box.querySelectorAll('.nav-item-card'), card);
+            var act = btn.getAttribute('data-act');
+            if (act === 'up' && idx > 0) {
+                var t = list[idx - 1]; list[idx - 1] = list[idx]; list[idx] = t;
+            } else if (act === 'down' && idx < list.length - 1) {
+                var t2 = list[idx + 1]; list[idx + 1] = list[idx]; list[idx] = t2;
+            } else if (act === 'dup') {
+                var copy = Object.assign({}, list[idx], { id: (list[idx].id || 'item') + '_copy_' + Date.now() });
+                list.splice(idx + 1, 0, copy);
+            } else if (act === 'del') {
+                if (list.length <= 1) { alert('至少保留一张导航卡片'); return; }
+                if (!confirm('删除该导航卡片？')) return;
+                list.splice(idx, 1);
+            } else {
+                return;
+            }
+            renderNavEditor(list);
+        });
+        box.addEventListener('input', syncNavHidden);
+        box.addEventListener('change', syncNavHidden);
+    }
+
+    var addBtn = document.getElementById('btn-nav-add');
+    if (addBtn) {
+        addBtn.addEventListener('click', function () {
+            var list = readNavFromEditor();
+            list.push({
+                id: 'item_' + Date.now(),
+                icon: '',
+                title: '新模块',
+                desc: '',
+                href: '/',
+                target: '_self',
+                admin_only: false,
+                enabled: true,
+                accent: ''
+            });
+            renderNavEditor(list);
+        });
+    }
+    var resetBtn = document.getElementById('btn-nav-reset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+            if (!confirm('恢复为默认导航卡片列表？未保存的修改会丢失。')) return;
+            renderNavEditor(FACTORY_DEFAULT_NAV.slice());
+        });
+    }
+
+    // 分类切换
+    document.getElementById('settings-cat-tabs').addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-cat-tab]');
+        if (!btn) return;
+        var key = btn.getAttribute('data-cat-tab');
+        document.querySelectorAll('[data-cat-tab]').forEach(function (el) {
+            el.classList.toggle('active', el === btn);
+        });
+        document.querySelectorAll('.settings-panel').forEach(function (panel) {
+            panel.classList.toggle('active', panel.getAttribute('data-category') === key);
+        });
+    });
+
+    // RMS 子分类切换
+    document.querySelectorAll('[data-subtabs-for]').forEach(function (bar) {
+        bar.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-section-tab]');
+            if (!btn) return;
+            var panel = bar.closest('.settings-panel');
+            if (!panel) return;
+            var key = btn.getAttribute('data-section-tab');
+            bar.querySelectorAll('[data-section-tab]').forEach(function (el) {
+                el.classList.toggle('active', el === btn);
+            });
+            panel.querySelectorAll('.settings-section').forEach(function (sec) {
+                sec.classList.toggle('active', sec.getAttribute('data-section') === key);
+            });
+        });
+    });
+
+    bindNavEditor();
+    renderNavEditor(DEFAULT_NAV && DEFAULT_NAV.length ? DEFAULT_NAV : FACTORY_DEFAULT_NAV);
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        syncNavHidden();
+        msg.textContent = '保存中…';
+        msg.className = 'settings-msg';
+        var settings = {};
+        form.querySelectorAll('input[data-cat][data-key], textarea[data-cat][data-key], select[data-cat][data-key]').forEach(function (input) {
+            var cat = input.getAttribute('data-cat');
+            var key = input.getAttribute('data-key');
+            if (!settings[cat]) settings[cat] = {};
+            settings[cat][key] = input.value.trim();
+        });
+        fetch('/api/system-settings', {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings: settings })
+        })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+                if (!res.ok || !res.data.success) {
+                    msg.textContent = (res.data && res.data.message) || '保存失败';
+                    msg.className = 'settings-msg err';
+                    return;
+                }
+                msg.textContent = res.data.message || '已保存';
+                msg.className = 'settings-msg ok';
+                try {
+                    if (res.data.settings && res.data.settings.nav && res.data.settings.nav.nav_items) {
+                        renderNavEditor(JSON.parse(res.data.settings.nav.nav_items));
+                    }
+                } catch (err) { /* ignore */ }
+            })
+            .catch(function () {
+                msg.textContent = '网络错误，请稍后重试';
+                msg.className = 'settings-msg err';
+            });
+    });
+})();
+</script>
+<%- include('partials/footer') %>

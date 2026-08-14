@@ -1,0 +1,259 @@
+<%- include('partials/header') %>
+<style>
+    :root { --primary-color: #0056b3; --border-color: #eee; }
+    .admin-main { max-width: 1000px; margin: 30px auto; padding: 0 15px; box-sizing: border-box; }
+    .flex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }
+    .card-header { margin-top: 0; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+    .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-full { grid-column: span 2; }
+    .input-field { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    .split-layout { display: flex; gap: 25px; flex-wrap: wrap; }
+    .split-panel { flex: 1; min-width: 300px; box-sizing: border-box; }
+    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .admin-table { width: 100%; text-align: left; border-collapse: collapse; min-width: 600px; }
+    .admin-table th, .admin-table td { padding: 15px; border-bottom: 1px solid #eee; }
+    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .btn { padding: 8px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; display: inline-block; text-align: center; }
+    .quick-add-form { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+    .quick-add-form input, .quick-add-form button { flex: 1; min-width: 120px; }
+    @media (max-width: 768px) {
+        .admin-main { margin: 15px auto; }
+        .grid-form { grid-template-columns: 1fr; }
+        .grid-full { grid-column: span 1; }
+        .split-layout { flex-direction: column; }
+        .card { padding: 15px; }
+        .btn-group { justify-content: flex-start; margin-top: 10px; }
+        .quick-add-form { flex-direction: column; align-items: stretch; }
+    }
+</style>
+<main class="admin-main">
+    <% if (msg) { %><div style="background:#d4edda; color:#155724; padding:12px; border-radius:5px; margin-bottom:20px; border:1px solid #c3e6cb; font-weight:bold;"><%= msg %></div><% } %>
+
+    <% if (mode === 'edit_vol' && vol) { %>
+        <div class="flex-header">
+            <h2>📝 编辑档案：<%= vol.name %> (<%= vol.badge_number %>)</h2>
+            <div class="btn-group">
+                <form method="POST" action="/admin_edit.php" style="display:inline;"
+                      onsubmit="return confirm('警告：您确定要彻底删除该队员吗？\n\n此操作将连带销毁所有关联数据且无法恢复！')">
+                    <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                    <input type="hidden" name="delete_volunteer" value="1">
+                    <input type="hidden" name="vid" value="<%= vol.id %>">
+                    <button type="submit" class="btn" style="background:#dc3545; color:white;">删除队员</button>
+                </form>
+                <a href="admin_edit.php" class="btn" style="background:#6c757d; color:white;">返回列表</a>
+            </div>
+        </div>
+        <div class="card">
+            <h3 class="card-header">👤 基础信息</h3>
+            <form method="POST" action="/admin_edit.php" class="grid-form" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                <input type="hidden" name="vid" value="<%= vol.id %>">
+                <input type="hidden" name="update_base" value="1">
+                <label>入队时间: <input type="date" name="join_date" value="<%= vol.join_date || '' %>" class="input-field"></label>
+                <label>血型: <input type="text" name="blood_type" value="<%= vol.blood_type || '' %>" placeholder="如: O型" class="input-field"></label>
+                <label>手机号: <input type="text" name="phone" value="<%= vol.phone || '' %>" placeholder="11位数字，如 13800138000" class="input-field" maxlength="20" inputmode="numeric" autocomplete="tel"></label>
+                <label>Agency / 分区:
+                    <select name="agency" class="input-field">
+                        <option value="">未分区</option>
+                        <%
+                            var agencyOptions = Array.isArray(agencies) ? agencies.slice() : [];
+                            var currentAgency = vol.agency || '';
+                            if (currentAgency && agencyOptions.indexOf(currentAgency) === -1) {
+                                agencyOptions.unshift(currentAgency);
+                            }
+                            agencyOptions.forEach(function (ag) {
+                        %>
+                        <option value="<%= ag %>" <%= currentAgency === ag ? 'selected' : '' %>><%= ag %></option>
+                        <% }) %>
+                    </select>
+                </label>
+                <% if (!agencies || !agencies.length) { %>
+                <p class="grid-full" style="margin:0; font-size:12px; color:#b45309;">尚未配置分区列表，请先到「系统设置 → RMS → Agency / 分区」添加。</p>
+                <% } %>
+                <label>在职状态:
+                    <select name="status" class="input-field">
+                        <option value="active" <%= vol.status === 'active' ? 'selected' : '' %>>在职有效</option>
+                        <option value="inactive" <%= vol.status === 'inactive' ? 'selected' : '' %>>离队失效</option>
+                    </select>
+                </label>
+                <div class="grid-full" style="border:1px dashed #ccc; border-radius:6px; padding:12px; background:#fafafa;">
+                    <div style="font-weight:bold; margin-bottom:8px;">队员头像</div>
+                    <% if (vol.avatar_url) { %>
+                    <div style="margin-bottom:10px;">
+                        <small style="color:#666; display:block; margin-bottom:6px;">当前头像：</small>
+                        <% if (/^https?:\/\//i.test(String(vol.avatar_url))) { %>
+                        <img src="<%= vol.avatar_url %>" alt="当前头像" style="width:96px; height:96px; object-fit:cover; border-radius:50%; border:1px solid #e2e8f0; background:#fff;">
+                        <small style="display:block; color:#b45309; margin-top:6px;">仍为旧直链，请重新上传本地文件以替换。</small>
+                        <% } else { %>
+                        <img src="/get_avatar.php?file=<%= encodeURIComponent(vol.avatar_url) %>" alt="当前头像" style="width:96px; height:96px; object-fit:cover; border-radius:50%; border:1px solid #e2e8f0; background:#fff;">
+                        <% } %>
+                    </div>
+                    <% } else { %>
+                    <p style="color:#999; font-size:13px; margin:0 0 10px;">尚未上传头像</p>
+                    <% } %>
+                    <small style="color:#666; display:block; margin-bottom:5px;">上传/更换头像（仅 JPG/PNG；保存为「队员编号_姓名.jpg」）：</small>
+                    <input type="file" name="avatar_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="input-field" style="background:#fff;">
+                    <small style="color:#94a3b8; display:block; margin-top:6px;">不选文件则保留原头像。不再支持外链。</small>
+                </div>
+                <div class="grid-full">
+                    <button type="submit" class="btn" style="background:#28a745; color:white; width:100%; padding:12px; font-size:16px;">保存基础信息</button>
+                </div>
+            </form>
+        </div>
+        <div class="split-layout">
+            <div class="card split-panel">
+                <h3 class="card-header">📋 已录入资质</h3>
+                <ul style="list-style:none; padding:0; margin:0;">
+                    <% certs.forEach(function(c) { %>
+                    <li style="padding:12px 0; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <span>
+                            <strong style="color:<%= c.color %>;"><%= c.label %></strong>
+                            <%= c.cert_name %>
+                            <small><%= c.dateInfo %></small>
+                            <% if (c.show_on_dispatch) { %>
+                            <span style="display:inline-block; margin-left:6px; padding:1px 6px; font-size:11px; border-radius:10px; background:#e7f1ff; color:#0056b3; font-weight:bold;">调度可见</span>
+                            <% } %>
+                        </span>
+                        <div class="btn-group">
+                            <a href="?edit_cert_id=<%= c.id %>&type=<%= c.type %>&vid=<%= vol.id %>" class="btn" style="background:#ffc107; color:#333; padding:5px 10px; font-size:13px;">编辑</a>
+                            <form method="POST" action="/admin_edit.php" style="display:inline;"
+                                  onsubmit="return confirm('确定删除并粉碎原图吗？')">
+                                <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                                <input type="hidden" name="del_cert" value="<%= c.id %>">
+                                <input type="hidden" name="type" value="<%= c.type %>">
+                                <input type="hidden" name="vid" value="<%= vol.id %>">
+                                <button type="submit" class="btn" style="background:#dc3545; color:white; padding:5px 10px; font-size:13px;">删除</button>
+                            </form>
+                        </div>
+                    </li>
+                    <% }) %>
+                </ul>
+            </div>
+            <div class="card split-panel" style="background:#f8f9fa; border:1px solid #ddd;">
+                <h3 class="card-header">➕ 颁发/录入新资质</h3>
+                <form method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:15px;">
+                    <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                    <input type="hidden" name="vid" value="<%= vol.id %>">
+                    <select name="type" id="cert_type" onchange="toggleExpiry()" class="input-field">
+                        <option value="internal">队内技能资质</option>
+                        <option value="external">通用外部资质</option>
+                    </select>
+                    <input type="text" name="cert_name" placeholder="资质名称" required class="input-field">
+                    <div><small style="color:#666; display:block; margin-bottom:5px;">签发/获取日期:</small><input type="date" name="issue_date" required class="input-field"></div>
+                    <div id="expiry_div" style="display:none;"><small style="color:#dc3545; display:block; margin-bottom:5px;">有效截止日期:</small><input type="date" name="expiry_date" class="input-field"></div>
+                    <div><small style="color:#666; display:block; margin-bottom:5px;">上传证书照片（仅 JPG/PNG，自动打斜向水印「仅限资质公开平台使用」）:</small><input type="file" name="cert_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="input-field" style="background:#fff;"></div>
+                    <label style="display:flex; align-items:center; gap:8px; font-size:14px; color:#333;">
+                        <input type="checkbox" name="show_on_dispatch" value="1">
+                        在调度大屏（dispatch）人员弹窗中显示此资质
+                    </label>
+                    <button type="submit" name="add_cert" value="1" class="btn" style="background:#0056b3; color:white; padding:12px; font-size:16px;">颁发入档</button>
+                </form>
+            </div>
+        </div>
+        <script>function toggleExpiry() { var type = document.getElementById('cert_type').value; document.getElementById('expiry_div').style.display = (type === 'external') ? 'block' : 'none'; }</script>
+
+    <% } else if (mode === 'edit_cert' && cert) { %>
+        <div class="flex-header"><h2>✏️ 修改资质信息</h2><a href="?edit_id=<%= vid %>" class="btn" style="background:#6c757d; color:white;">返回档案</a></div>
+        <div class="card" style="max-width:600px; margin:0 auto; border-top:4px solid #ffc107;">
+            <form method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:15px;">
+                <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                <input type="hidden" name="cert_id" value="<%= cert.id %>">
+                <input type="hidden" name="vid" value="<%= vid %>">
+                <input type="hidden" name="type" value="<%= type %>">
+                <label style="font-weight:bold;">资质名称:</label><input type="text" name="cert_name" value="<%= cert.cert_name %>" required class="input-field">
+                <label style="font-weight:bold;">签发/获取日期:</label><input type="date" name="issue_date" value="<%= cert.issue_date %>" required class="input-field">
+                <% if (type === 'external') { %>
+                <label style="font-weight:bold; color:#dc3545;">有效截止日期:</label><input type="date" name="expiry_date" value="<%= cert.expiry_date %>" required class="input-field">
+                <% } %>
+                <label style="display:flex; align-items:center; gap:8px; font-weight:bold; margin-top:4px;">
+                    <input type="checkbox" name="show_on_dispatch" value="1" <%= cert.show_on_dispatch ? 'checked' : '' %>>
+                    在调度大屏（dispatch）人员弹窗中显示此资质
+                </label>
+                <div style="border:1px dashed #ccc; border-radius:6px; padding:12px; background:#fafafa;">
+                    <div style="font-weight:bold; margin-bottom:8px;">证书照片</div>
+                    <% if (cert.image_url) { %>
+                    <div style="margin-bottom:10px;">
+                        <small style="color:#666; display:block; margin-bottom:6px;">当前照片（已含水印）：</small>
+                        <a href="/get_cert.php?file=<%= encodeURIComponent(cert.image_url) %>" target="_blank" rel="noopener">
+                            <img src="/get_cert.php?file=<%= encodeURIComponent(cert.image_url) %>"
+                                 alt="当前证书"
+                                 style="max-width:100%; max-height:220px; border-radius:4px; border:1px solid #e2e8f0; object-fit:contain; background:#fff;">
+                        </a>
+                    </div>
+                    <% } else { %>
+                    <p style="color:#999; font-size:13px; margin:0 0 10px;">当前无证书照片</p>
+                    <% } %>
+                    <small style="color:#666; display:block; margin-bottom:5px;">重新上传（可选，仅 JPG/PNG；保存后自动打斜向水印「仅限资质公开平台使用」）：</small>
+                    <input type="file" name="cert_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="input-field" style="background:#fff;">
+                    <small style="color:#94a3b8; display:block; margin-top:6px;">不选文件则只改文字信息，保留原图。其它格式将被拒绝。</small>
+                </div>
+                <button type="submit" name="update_cert_info" value="1" class="btn" style="background:#ffc107; color:#333; padding:12px; font-size:16px;">💾 保存修改</button>
+            </form>
+        </div>
+
+    <% } else if (mode === 'account' && vol) { %>
+        <div class="flex-header"><h2>🔑 账号管理：<%= vol.name %></h2><a href="admin_edit.php" class="btn" style="background:#6c757d; color:white;">返回列表</a></div>
+        <div class="card" style="max-width:500px; margin:0 auto;">
+            <% if (accountUser) { %>
+                <form method="POST" style="display:flex; flex-direction:column; gap:15px;">
+                    <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                    <input type="hidden" name="uid" value="<%= accountUser.id %>">
+                    <input type="hidden" name="vid" value="<%= vol.id %>">
+                    <label>登录账号:</label><input type="text" name="username" value="<%= accountUser.username %>" required class="input-field">
+                    <label>权限:</label>
+                    <select name="role" class="input-field">
+                        <option value="user" <%= accountUser.role === 'user' ? 'selected' : '' %>>普通队员</option>
+                        <option value="admin" <%= accountUser.role === 'admin' ? 'selected' : '' %>>管理员</option>
+                    </select>
+                    <label>重置密码:</label><input type="password" name="new_password" placeholder="留空则不修改" class="input-field">
+                    <button type="submit" name="update_account" value="1" class="btn" style="background:#0056b3; color:white; padding:12px;">保存更新</button>
+                </form>
+            <% } else { %>
+                <form method="POST" style="display:flex; flex-direction:column; gap:15px;">
+                    <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                    <input type="hidden" name="vid" value="<%= vol.id %>">
+                    <label>分配账号:</label><input type="text" name="username" required class="input-field">
+                    <label>权限:</label>
+                    <select name="role" class="input-field"><option value="user">普通队员</option><option value="admin">管理员</option></select>
+                    <label>初始密码:</label><input type="password" name="password" required class="input-field">
+                    <button type="submit" name="create_account" value="1" class="btn" style="background:#28a745; color:white; padding:12px;">开通账号</button>
+                </form>
+            <% } %>
+        </div>
+
+    <% } else { %>
+        <div class="flex-header"><h2>队员列表</h2><a href="dashboard.php" class="btn" style="background:#6c757d; color:white;">返回导航页</a></div>
+        <div class="card" style="background:#e9ecef; border-left:5px solid #0056b3;">
+            <form method="POST" class="quick-add-form">
+                <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                <strong>➕ 快速建档:</strong>
+                <input type="text" name="new_name" placeholder="姓名" required class="input-field">
+                <input type="text" name="new_badge" placeholder="编号" required class="input-field">
+                <input type="date" name="new_join_date" required class="input-field">
+                <button type="submit" name="add_volunteer" value="1" class="btn" style="background:#0056b3; color:white;">新建</button>
+            </form>
+        </div>
+        <div class="table-responsive">
+            <table class="admin-table">
+                <tr style="background:#0056b3; color:white;"><th>ID</th><th>姓名</th><th>编号</th><th>分区</th><th>状态</th><th>操作</th></tr>
+                <% volunteers.forEach(function(row) { %>
+                <tr>
+                    <td><%= row.id %></td>
+                    <td><%= row.name %></td>
+                    <td><%= row.badge_number %></td>
+                    <td><%= row.agency ? row.agency : '—' %></td>
+                    <td><%= row.status === 'active' ? '在职' : '离队' %></td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="?edit_id=<%= row.id %>" class="btn" style="border:1px solid #0056b3; color:#0056b3;">📝 档案</a>
+                            <a href="?account_id=<%= row.id %>" class="btn" style="border:1px solid #28a745; color:#28a745;">🔑 账号</a>
+                        </div>
+                    </td>
+                </tr>
+                <% }) %>
+            </table>
+        </div>
+    <% } %>
+</main>
+<%- include('partials/footer') %>

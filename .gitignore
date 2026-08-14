@@ -1,1 +1,30 @@
-.trae
+# dependencies
+node_modules/
+apps/**/node_modules/
+
+# 安装完成后的锁（空模板仓库不要带 lock）
+apps/_shared/data/install.lock
+
+# logs & runtime
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# uploads / generated
+apps/portal/certificates/*
+!apps/portal/certificates/.gitkeep
+apps/portal/avatars/*
+!apps/portal/avatars/.gitkeep
+apps/rtls/uploads/*
+!apps/rtls/uploads/.gitkeep
+
+# editor / OS
+.idea/
+.vscode/
+*.swp
+*.tmp
+_audit_tmp.js
+
+# backups (local only)
+*_backup_*/

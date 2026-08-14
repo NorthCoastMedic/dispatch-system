@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme-default="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>成员响应终端</title>
+    <script>
+    (function () {
+        var k = 'rms_theme';
+        var d = document.documentElement.getAttribute('data-theme-default') || 'dark';
+        try {
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark') ? t : d);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', d);
+        }
+        document.documentElement.classList.add('rms-themed');
+    })();
+    </script>
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/platform/topnav.css?v=20260814c">
+    <script src="/platform/topnav.js?v=20260814c" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css?v=20260814q">
+    <link rel="stylesheet" href="css/theme.css?v=20260814m">
+    <script src="js/theme.js?v=20260814g" defer></script>
+</head>
+<body class="terminal-moto">
+
+    <div class="tm-shell">
+        <header class="tm-header">
+            <div class="tm-header-brand">
+                <div class="tm-mark">RMS</div>
+                <div class="min-w-0">
+                    <h1 data-brand="rms_terminal_title">响应终端</h1>
+                    <div id="header-clock" class="tm-clock">--:--:--</div>
+                </div>
+            </div>
+            <div class="tm-header-actions">
+                <div data-rms-theme-slot class="rms-theme-toggle-wrap"></div>
+                <div class="relative">
+                    <button id="username-btn" type="button" class="tm-account-btn">
+                        <span id="header-username">加载中...</span>
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="user-dropdown" data-ptn="rms" class="hidden absolute right-0 mt-2 w-52 rounded shadow-2xl border z-40 overflow-hidden tm-dropdown">
+                        <button id="logout-btn" class="w-full text-left px-4 py-2.5 text-sm font-medium">
+                            退出登录
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="tm-main">
+            <div class="tm-col-feed">
+                <div id="tm-link-banner" class="hidden tm-alert tm-alert-offline">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <div class="tm-alert-title">弱网队列</div>
+                            <div id="tm-link-banner-text" class="tm-alert-body">网络状态检测中…</div>
+                        </div>
+                        <button type="button" id="btn-flush-offline-queue" class="tm-btn tm-btn-sm tm-btn-ghost shrink-0">立即回传</button>
+                    </div>
+                </div>
+
+                <div id="dispatch-message-banner" class="hidden tm-alert tm-alert-msg">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1 cursor-pointer" id="dispatch-message-banner-body" title="点击查看全文" role="button" tabindex="0">
+                            <div id="dispatch-message-banner-title" class="tm-alert-title">调度通知</div>
+                            <div id="dispatch-message-banner-preview" class="tm-alert-body truncate"></div>
+                            <div id="dispatch-message-banner-meta" class="tm-alert-meta"></div>
+                        </div>
+                        <button type="button" id="btn-dismiss-dispatch-banner" class="tm-icon-btn" title="关闭">×</button>
+                    </div>
+                </div>
+
+                <button type="button" id="btn-open-message-history" class="tm-btn tm-btn-ghost">
+                    信息历史
+                </button>
+
+                <div id="pending-assign-card" class="hidden tm-panel tm-panel-warn">
+                    <div class="tm-panel-kicker">调度指派待确认</div>
+                    <div id="pending-assign-title" class="tm-panel-title">—</div>
+                    <div id="pending-assign-meta" class="tm-panel-meta whitespace-pre-wrap"></div>
+                    <div class="tm-btn-row">
+                        <button type="button" id="btn-reject-assign" class="tm-btn tm-btn-ghost">拒绝</button>
+                        <button type="button" id="btn-accept-assign" class="tm-btn tm-btn-amber">接受</button>
+                    </div>
+                </div>
+
+                <div id="announcement-board" class="hidden tm-alert tm-alert-emergency">
+                    <div class="tm-alert-title">紧急状态广播</div>
+                    <div id="announcement-list" class="tm-alert-body space-y-2"></div>
+                </div>
+            </div>
+
+            <section class="tm-panel tm-col-status">
+                <div class="tm-lcd">
+                    <div class="tm-lcd-label">当前状态</div>
+                    <div id="my-status-badge" class="tm-lcd-status">不可用</div>
+                </div>
+
+                <div id="current-event-card" class="tm-event-bind">
+                    <div class="min-w-0">
+                        <div class="tm-event-bind-label">当前响应事件</div>
+                        <div id="current-event-title" class="tm-event-bind-title">暂无</div>
+                    </div>
+                    <button id="btn-stop-responding" type="button" class="tm-btn tm-btn-danger tm-btn-sm shrink-0 is-disabled" disabled>
+                        停止响应
+                    </button>
+                </div>
+
+                <div class="tm-status-grid">
+                    <button id="btn-status-1" type="button" class="tm-key tm-key-standby">待命</button>
+                    <button id="btn-status-2" type="button" class="tm-key tm-key-off">不可用</button>
+                    <button id="btn-status-3" type="button" class="tm-key tm-key-busy">响应中</button>
+                    <button id="btn-status-4" type="button" class="tm-key tm-key-scene">到达现场</button>
+                </div>
+
+                <button id="btn-status-5" type="button" class="tm-key tm-key-emergency long-press-active" aria-label="紧急按钮">
+                    紧急按钮
+                </button>
+            </section>
+
+            <section class="tm-panel tm-panel-actions tm-col-actions">
+                <button id="btn-open-add-event" type="button" class="tm-btn tm-btn-primary">上报事件</button>
+                <a id="link-firstaid-form"
+                   href="#"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="tm-btn tm-btn-primary"
+                   data-brand="rms_firstaid_form_label"
+                   data-brand-href="rms_firstaid_form_url"
+                   data-brand-show="rms_firstaid_form_enabled">急救表单</a>
+                <button id="btn-status-6" type="button" class="tm-btn tm-btn-offline">离线</button>
+            </section>
+        </main>
+
+        <footer class="tm-footer unified-site-footer">
+            <p class="m-0" data-brand="footer_copyright">© 组织名称. 保留所有权利。</p>
+            <p class="m-0 mt-1" data-brand="footer_motto">时间就是生命，责任重于泰山</p>
+        </footer>
+    </div>
+
+    <div id="modal-select-event" class="fixed inset-0 bg-black/60 z-50 hidden flex justify-center items-center p-4">
+        <div class="tm-modal max-w-md w-full">
+            <h3 class="tm-modal-title">选择要响应的事件</h3>
+            <div id="select-event-list" class="space-y-2 max-h-60 overflow-y-auto mb-5"></div>
+            <div class="tm-btn-row">
+                <button id="btn-close-event-modal" type="button" class="tm-btn tm-btn-ghost">取消</button>
+                <button id="btn-confirm-select-event" type="button" class="tm-btn tm-btn-primary">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-add-event" class="fixed inset-0 bg-black/60 z-50 hidden flex justify-center items-center p-4">
+        <div class="tm-modal max-w-md w-full">
+            <h3 class="tm-modal-title">上报新事件</h3>
+            <form id="form-add-event" class="space-y-4">
+                <div>
+                    <label class="tm-label">事件地点</label>
+                    <input type="text" id="event-title" required placeholder="如：中山路100号" class="tm-input">
+                </div>
+                <div>
+                    <label class="tm-label">联系方式</label>
+                    <input type="text" id="event-contact" required placeholder="如：13800138000" class="tm-input">
+                </div>
+                <div>
+                    <label class="tm-label">详细情况</label>
+                    <textarea id="event-details" required rows="3" placeholder="伤情、人数、现场情况等…" class="tm-input"></textarea>
+                </div>
+                <div>
+                    <label class="tm-label">优先级</label>
+                    <select id="event-priority" class="tm-input">
+                        <option value="1">高优先级</option>
+                        <option value="2">中优先级</option>
+                        <option value="3" selected>低优先级</option>
+                    </select>
+                </div>
+                <div class="tm-btn-row pt-1">
+                    <button type="button" id="btn-close-add-modal" class="tm-btn tm-btn-ghost">取消</button>
+                    <button type="submit" class="tm-btn tm-btn-primary">提交事件</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-dispatch-message" class="fixed inset-0 bg-black/60 z-50 hidden flex justify-center items-center p-4">
+        <div class="tm-modal max-w-md w-full">
+            <div class="flex items-start justify-between gap-3 mb-3">
+                <h3 id="dm-title" class="tm-modal-title mb-0">调度通知</h3>
+                <span id="dm-kind" class="tm-chip">通知</span>
+            </div>
+            <div class="tm-alert-meta mb-2">
+                <span id="dm-from"></span>
+                <span id="dm-time" class="ml-2"></span>
+            </div>
+            <div id="dm-body" class="tm-pre"></div>
+            <div class="mt-5">
+                <button type="button" id="btn-close-dispatch-message" class="tm-btn tm-btn-primary w-full">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-message-history" class="fixed inset-0 bg-black/60 z-50 hidden flex justify-center items-center p-4">
+        <div class="tm-modal max-w-md w-full max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between mb-3 shrink-0 gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                    <button type="button" id="btn-message-history-back" class="hidden tm-btn tm-btn-ghost tm-btn-sm shrink-0">返回</button>
+                    <h3 id="message-history-heading" class="tm-modal-title mb-0 truncate">信息历史</h3>
+                </div>
+                <button type="button" id="btn-close-message-history" class="tm-btn tm-btn-ghost tm-btn-sm shrink-0">关闭</button>
+            </div>
+            <div id="message-history-list-wrap" class="flex-1 min-h-0 overflow-hidden flex flex-col">
+                <div id="message-history-list" class="space-y-2 overflow-y-auto flex-1 min-h-[200px] text-sm"></div>
+            </div>
+            <div id="message-history-detail" class="hidden flex-1 min-h-0 overflow-y-auto flex flex-col">
+                <div class="flex items-start justify-between gap-3 mb-2">
+                    <span id="mhd-kind" class="tm-chip">通知</span>
+                    <span id="mhd-time" class="tm-alert-meta"></span>
+                </div>
+                <div id="mhd-from" class="tm-alert-meta mb-3"></div>
+                <div id="mhd-body" class="tm-pre flex-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-tm-confirm" class="fixed inset-0 bg-black/60 z-[60] hidden flex justify-center items-center p-4">
+        <div class="tm-modal max-w-sm w-full">
+            <h3 id="tm-confirm-title" class="tm-modal-title">请确认</h3>
+            <p id="tm-confirm-message" class="tm-alert-body mb-5 whitespace-pre-wrap"></p>
+            <div class="tm-btn-row">
+                <button type="button" id="tm-confirm-cancel" class="tm-btn tm-btn-ghost">取消</button>
+                <button type="button" id="tm-confirm-ok" class="tm-btn tm-btn-primary">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-tm-notice" class="fixed inset-0 bg-black/60 z-[60] hidden flex justify-center items-center p-4">
+        <div class="tm-modal max-w-sm w-full">
+            <h3 id="tm-notice-title" class="tm-modal-title">提示</h3>
+            <p id="tm-notice-message" class="tm-alert-body mb-5 whitespace-pre-wrap"></p>
+            <button type="button" id="tm-notice-ok" class="tm-btn tm-btn-primary w-full">知道了</button>
+        </div>
+    </div>
+
+    <audio id="alarm-audio" src="/rms/sounds/alarm.mp3" preload="auto"></audio>
+    <audio id="message-tone" src="/rms/sounds/event_tone.mp3" preload="auto"></audio>
+
+    <script src="/platform/branding.js?v=20260814f"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="js/common.js?v=20260814s" defer></script>
+    <script src="js/offlineQueue.js?v=20260814a" defer></script>
+    <script src="js/member.js?v=20260814s" defer></script>
+</body>
+</html>
