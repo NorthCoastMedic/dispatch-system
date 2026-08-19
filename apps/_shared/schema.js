@@ -15,22 +15,42 @@ function splitSql(sql) {
         .filter(Boolean);
 }
 
-async function runSqlFile(conn, filePath) {
+function tableNameFromCreate(stmt) {
+    const m = String(stmt || '').match(
+        /CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+(?:public\.)?[`"]?([A-Za-z0-9_]+)/i
+    );
+    return m ? m[1] : null;
+}
+
+function countCreateTables(filePath) {
+    const sql = fs.readFileSync(filePath, 'utf8');
+    let n = 0;
+    for (const stmt of splitSql(sql)) {
+        if (tableNameFromCreate(stmt)) n += 1;
+    }
+    return n;
+}
+
+async function runSqlFile(conn, filePath, onTable) {
     const sql = fs.readFileSync(filePath, 'utf8');
     for (const stmt of splitSql(sql)) {
         await conn.query(stmt);
+        const name = tableNameFromCreate(stmt);
+        if (name && typeof onTable === 'function') {
+            await onTable(name);
+        }
     }
 }
 
-async function ensureOrgSchema(conn) {
-    await runSqlFile(conn, path.join(__dirname, 'sql', 'org.sql'));
+async function ensureOrgSchema(conn, onTable) {
+    await runSqlFile(conn, path.join(__dirname, 'sql', 'org.sql'), onTable);
 }
 
-async function ensureRtlsSchema(conn) {
-    await runSqlFile(conn, path.join(__dirname, 'sql', 'rtls.sql'));
+async function ensureRtlsSchema(conn, onTable) {
+    await runSqlFile(conn, path.join(__dirname, 'sql', 'rtls.sql'), onTable);
 }
 
-async function ensureWbgtSchema(client) {
+async function ensureWbgtSchema(client, onTable) {
     await client.query(`
         CREATE TABLE IF NOT EXISTS public.wbgt_logs (
             id SERIAL PRIMARY KEY,
@@ -39,6 +59,7 @@ async function ensureWbgtSchema(client) {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `);
+    if (typeof onTable === 'function') await onTable('wbgt_logs');
 }
 
 function ident(name, fallback) {
@@ -51,5 +72,6 @@ module.exports = {
     ensureOrgSchema,
     ensureRtlsSchema,
     ensureWbgtSchema,
+    countCreateTables,
     ident
 };

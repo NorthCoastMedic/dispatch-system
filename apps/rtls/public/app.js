@@ -32,7 +32,16 @@ document.addEventListener('DOMContentLoaded', function() {
     var timeOffset = 0;
     var isZooming = false;
     var lastDataHash = ""; 
-    let staticMarkerLayers = []; 
+    let staticMarkerLayers = [];
+
+    function escapeHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    } 
     
     var iconPerson = L.divIcon({ 
         html: `
@@ -83,8 +92,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const lowBattClass = (c.batt !== undefined && c.batt <= 20) ? 'low-batt-flash' : '';
 
             dynamicHtml += `
-                <li class="card ${statusClass}" id="device-${id}" onclick="window.openSidebar('${id}')">
-                    <h4>${(c.nickname || id)} <span class="role-badge">${c.role || ''}</span></h4>
+                <li class="card ${statusClass}" id="device-${escapeHtml(id)}" data-open-device="${escapeHtml(id)}">
+                    <h4>${escapeHtml(c.nickname || id)} <span class="role-badge">${escapeHtml(c.role || '')}</span></h4>
                     <p>电量: <span class="card-batt ${lowBattClass}">${c.batt ?? '--'}%</span> | 状态: <span class="status-text">${statusText}</span></p>
                 </li>
             `;
@@ -92,6 +101,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         list.innerHTML = dynamicHtml;
     };
+
+    const deviceListEl = document.getElementById('device-list');
+    if (deviceListEl) {
+        deviceListEl.addEventListener('click', (e) => {
+            const card = e.target.closest('[data-open-device]');
+            if (!card) return;
+            const id = card.getAttribute('data-open-device');
+            if (id && typeof window.openSidebar === 'function') window.openSidebar(id);
+        });
+    }
 
     function applyFiltersToMarkers() {
         const activeRoles = Array.from(document.querySelectorAll('.role-filter:checked')).map(cb => cb.value);
@@ -447,11 +466,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const leafletMarker = L.marker([marker.lat, marker.lng], { icon: markerIcon })
                     .bindPopup(`
                         <div class="rtls-popup" style="font-family:sans-serif; padding:4px; min-width:180px;">
-                            <strong class="rtls-popup-title" style="font-size:15px; color:${typeColor};">${typeEmoji} ${marker.name}</strong>
+                            <strong class="rtls-popup-title" style="font-size:15px; color:${typeColor};">${typeEmoji} ${escapeHtml(marker.name)}</strong>
                             <div class="rtls-popup-divider" style="height:1px; margin:8px 0;"></div>
                             <p class="rtls-popup-body" style="margin:0; font-size:13px; line-height:1.5;">
                                 <b class="rtls-popup-label">指挥调度备注：</b><br/>
-                                <span class="rtls-popup-remark" style="display:block; padding:6px; border-radius:4px; border:1px solid transparent; margin-top:4px;">${marker.remark || '暂无指派调度记录'}</span>
+                                <span class="rtls-popup-remark" style="display:block; padding:6px; border-radius:4px; border:1px solid transparent; margin-top:4px;">${escapeHtml(marker.remark || '暂无指派调度记录')}</span>
                             </p>
                         </div>
                     `, { closeButton: false, offset: L.point(0, -10) })

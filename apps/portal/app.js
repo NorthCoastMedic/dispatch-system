@@ -755,7 +755,7 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send('服务器内部错误: ' + err.message);
+        res.status(500).send('服务器内部错误');
     }
 });
 

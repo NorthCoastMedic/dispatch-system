@@ -11,6 +11,7 @@ let secret = '';
 let trustProxy = false;
 let accessTtlSec = 15 * 60;
 let refreshTtlSec = 24 * 60 * 60;
+let pool = null;
 
 /** jti -> { userId, username, role, volunteer_id, familyId, exp, revoked } */
 const refreshStore = new Map();
@@ -21,10 +22,14 @@ function configure(opts) {
     if (opts.trustProxy != null) trustProxy = !!opts.trustProxy;
     if (opts.accessTtlSec > 0) accessTtlSec = Number(opts.accessTtlSec);
     if (opts.refreshTtlSec > 0) refreshTtlSec = Number(opts.refreshTtlSec);
+    if (opts.pool) pool = opts.pool;
 }
 
 function getSecret() {
-    return secret || 'dev_only_change_me_token';
+    if (!secret) {
+        throw new Error('SESSION_SECRET 未配置');
+    }
+    return secret;
 }
 
 function b64urlJson(obj) {
@@ -135,10 +140,70 @@ function claimsForUser(user, extra) {
     }, extra || {});
 }
 
+function persistRefreshRec(jti, rec) {
+    if (!pool || !jti || !rec) return;
+    pool.query(
+        `INSERT INTO auth_refresh_tokens
+         (jti, user_id, username, role, volunteer_id, family_id, exp, revoked)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           user_id = VALUES(user_id),
+           username = VALUES(username),
+           role = VALUES(role),
+           volunteer_id = VALUES(volunteer_id),
+           family_id = VALUES(family_id),
+           exp = VALUES(exp),
+           revoked = VALUES(revoked)`,
+        [
+            jti,
+            rec.userId,
+            rec.username || null,
+            rec.role || null,
+            rec.volunteer_id != null ? rec.volunteer_id : null,
+            rec.familyId,
+            rec.exp,
+            rec.revoked ? 1 : 0
+        ]
+    ).catch((err) => console.warn('[auth] 刷新令牌写入失败:', err.message));
+}
+
+function deleteRefreshRec(jti) {
+    if (!pool || !jti) return;
+    pool.query('DELETE FROM auth_refresh_tokens WHERE jti = ?', [jti])
+        .catch((err) => console.warn('[auth] 刷新令牌删除失败:', err.message));
+}
+
 function pruneRefreshStore() {
     const now = Math.floor(Date.now() / 1000);
     for (const [jti, rec] of refreshStore) {
         if (!rec || rec.revoked || rec.exp <= now) refreshStore.delete(jti);
+    }
+    if (pool) {
+        pool.query('DELETE FROM auth_refresh_tokens WHERE exp <= ? OR revoked = 1', [now])
+            .catch(() => {});
+    }
+}
+
+async function hydrateRefreshStore() {
+    if (!pool) return;
+    const now = Math.floor(Date.now() / 1000);
+    const [rows] = await pool.query(
+        `SELECT jti, user_id, username, role, volunteer_id, family_id, exp, revoked
+         FROM auth_refresh_tokens
+         WHERE revoked = 0 AND exp > ?`,
+        [now]
+    );
+    refreshStore.clear();
+    for (const row of rows || []) {
+        refreshStore.set(row.jti, {
+            userId: row.user_id,
+            username: row.username,
+            role: row.role,
+            volunteer_id: row.volunteer_id || null,
+            familyId: row.family_id,
+            exp: Number(row.exp),
+            revoked: false
+        });
     }
 }
 
@@ -168,6 +233,7 @@ function issueTokenPair(user) {
         exp: refreshPayload.exp,
         revoked: false
     });
+    persistRefreshRec(rtJti, refreshStore.get(rtJti));
     return {
         accessToken: signJwt(accessPayload),
         refreshToken: signJwt(refreshPayload),
@@ -181,6 +247,7 @@ function rotateRefresh(oldPayload) {
     if (!rec || rec.revoked) return null;
     rec.revoked = true;
     refreshStore.delete(oldPayload.jti);
+    deleteRefreshRec(oldPayload.jti);
     const user = {
         id: rec.userId,
         username: rec.username,
@@ -207,6 +274,7 @@ function rotateRefresh(oldPayload) {
         exp: refreshPayload.exp,
         revoked: false
     });
+    persistRefreshRec(rtJti, refreshStore.get(rtJti));
     return {
         accessToken: signJwt(accessPayload),
         refreshToken: signJwt(refreshPayload),
@@ -222,6 +290,7 @@ function accessFromRefresh(payload) {
     const now = Math.floor(Date.now() / 1000);
     if (rec.exp <= now) {
         refreshStore.delete(payload.jti);
+        deleteRefreshRec(payload.jti);
         return null;
     }
     const user = {
@@ -246,6 +315,7 @@ function revokeRefreshToken(token) {
     if (rec) {
         rec.revoked = true;
         refreshStore.delete(payload.jti);
+        deleteRefreshRec(payload.jti);
     }
 }
 
@@ -387,6 +457,7 @@ module.exports = {
     COOKIE_AT,
     COOKIE_RT,
     configure,
+    hydrateRefreshStore,
     middleware,
     issueForUser,
     refreshHandler,

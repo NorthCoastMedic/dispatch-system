@@ -3,7 +3,7 @@
  * - rms_status_logs   人员状态
  * - rms_event_logs    事件时间线
  * - dispatch_message_logs  单呼/广播/紧急（终端信息历史）
- * 旧表 dispatch_logs 可删除，不再写入。
+ * 旧表 dispatch_logs 不再写入，也不在启动时删除。
  */
 const crypto = require('crypto');
 
@@ -106,12 +106,7 @@ async function ensureRmsLogTables(db) {
     } catch (err) {
         console.warn('[dispatchLog] pending_event_id:', err.message);
     }
-    // 旧表可删（无正式数据）
-    try {
-        await db.query('DROP TABLE IF EXISTS dispatch_logs');
-    } catch (err) {
-        console.warn('[dispatchLog] drop dispatch_logs:', err.message);
-    }
+    // 旧表 dispatch_logs 不再写入。禁止在启动时 DROP，以免清掉历史数据。
     ensured = true;
 }
 

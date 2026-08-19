@@ -1,3 +1,7 @@
+# secrets — 由首次安装写入本地，仓库只保留 .env.example
+.env
+**/.env
+
 # dependencies
 node_modules/
 apps/**/node_modules/

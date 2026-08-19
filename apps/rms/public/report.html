@@ -16,6 +16,9 @@
     </header>
 
     <main class="max-w-lg mx-auto px-4 py-6">
+        <div id="report-closed" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-5 text-sm">
+            当前未开放公开上报。
+        </div>
         <form id="report-form" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
             <div>
                 <label class="block text-xs font-semibold text-gray-500 mb-2">求助类型 <span class="text-red-500">*</span></label>
@@ -65,11 +68,28 @@
 
     <script src="/platform/branding.js?v=20260813a"></script>
     <script>
+    const reportToken = new URLSearchParams(location.search).get('token') || '';
+
+    async function loadReportStatus() {
+        const urls = ['/api/public-report-status', '/rms/api/public-report-status'];
+        for (const url of urls) {
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) continue;
+                const data = await res.json();
+                if (data && data.success) return data;
+            } catch (_) { /* try next */ }
+        }
+        return { success: true, enabled: true, token_required: false };
+    }
+
     async function submitReport({ report_type, title, contact, details, force }) {
-        const res = await fetch('/api/public-report', {
+        const payload = { report_type, title, contact, details, force: !!force };
+        if (reportToken) payload.token = reportToken;
+        const res = await fetch('/rms/api/public-report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ report_type, title, contact, details, force: !!force })
+            body: JSON.stringify(payload)
         });
         const data = await res.json().catch(() => ({}));
         return { res, data };
@@ -79,6 +99,22 @@
         const el = document.querySelector('input[name="report_type"]:checked');
         return el ? el.value : '';
     }
+
+    (async () => {
+        const status = await loadReportStatus();
+        const form = document.getElementById('report-form');
+        const closed = document.getElementById('report-closed');
+        if (!status.enabled) {
+            form.classList.add('hidden');
+            closed.classList.remove('hidden');
+            return;
+        }
+        if (status.token_required && !reportToken) {
+            form.classList.add('hidden');
+            closed.textContent = '需要上报凭证。请使用指挥下发的带 token 的链接打开本页。';
+            closed.classList.remove('hidden');
+        }
+    })();
 
     document.getElementById('report-form').addEventListener('submit', async (e) => {
         e.preventDefault();

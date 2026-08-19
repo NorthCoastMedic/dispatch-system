@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const mysql = require('mysql2');
 const mqtt = require('mqtt');
-const { DOMParser } = require('xmldom');
+const { DOMParser } = require('@xmldom/xmldom');
 const { loadLocalEnv, envGet } = require('../_shared/env');
 const { ensureUnifiedSession, isAdminUser } = require('../_shared/session');
 
@@ -45,16 +45,25 @@ async function testDbConnection() {
 
 testDbConnection();
 
-// --- MQTT 核心逻辑 ---
-const mqttBrokerUrl = envGet(local, 'MQTT_BROKER_URL', '');
-const mqttClient = mqtt.connect(mqttBrokerUrl || 'mqtt://127.0.0.1:1883');
-const deviceStates = {}; 
+// --- MQTT 核心逻辑：未配置则不连，避免默默连上本机 1883 ---
+const mqttBrokerUrl = String(envGet(local, 'MQTT_BROKER_URL', '') || '').trim();
+let mqttClient = null;
+if (mqttBrokerUrl) {
+    mqttClient = mqtt.connect(mqttBrokerUrl);
+    mqttClient.on('connect', () => {
+        console.log('>>> MQTT Broker 已连接，正在订阅主题...');
+        mqttClient.subscribe(envGet(local, 'MQTT_TOPIC_FILTER', 'owntracks/#') || 'owntracks/#');
+    });
+    mqttClient.on('error', (err) => {
+        console.error('[RTLS] MQTT:', err.message);
+    });
+} else {
+    console.log('[RTLS] 未配置 MQTT_BROKER_URL，跳过 MQTT 连接');
+}
 
-mqttClient.on('connect', () => {
-    console.log('>>> MQTT Broker 已连接，正在订阅主题...');
-    mqttClient.subscribe('owntracks/#');
-});
+const deviceStates = {};
 
+if (mqttClient) {
 mqttClient.on('message', async (topic, message) => {
     try {
         const messageStr = message.toString();
@@ -115,10 +124,7 @@ mqttClient.on('message', async (topic, message) => {
         console.error('MQTT自动注册/解析错误:', e.message); 
     }
 });
-
-mqttClient.on('error', (err) => {
-    console.error('MQTT 连接出现异常:', err);
-});
+}
 
 // --- Express 中间件 ---
 // 同域挂载，无需开放跨域；KML 上传控制在合理上限

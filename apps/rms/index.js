@@ -1,11 +1,13 @@
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const { loadLocalEnv, envGet } = require('../_shared/env');
 const { ensureUnifiedSession, setUnifiedSession, isAdminUser } = require('../_shared/session');
 const authTokens = require('../_shared/authTokens');
 const rateLimit = require('../_shared/rateLimit');
+const { loadSettings } = require('../_shared/systemSettings');
 const {
     notifySafe,
     lookupPhoneByUserId,
@@ -35,6 +37,42 @@ const {
 const { findDuplicateEvents, formatDuplicateHint, DEFAULT_WITHIN_MINUTES } = require('./lib/duplicateEvent');
 
 const DISPATCH_CHANNELS = new Set(['terminal', 'wecom', 'all']);
+const ALLOWED_STATUS = new Set([1, 2, 3, 4, 5, 6]);
+const ALLOWED_PRIORITY = new Set([1, 2, 3]);
+const EVENT_LIMITS = { title: 80, contact: 80, details: 1000, remark: 1000, description: 2000 };
+
+function clampPriority(raw) {
+    const n = parseInt(raw, 10);
+    return ALLOWED_PRIORITY.has(n) ? n : 3;
+}
+
+function tokensMatch(provided, expected) {
+    const a = Buffer.from(String(provided || ''), 'utf8');
+    const b = Buffer.from(String(expected || ''), 'utf8');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+}
+
+function readPublicReportToken(req) {
+    const body = req.body || {};
+    const q = req.query || {};
+    const hdr = req.headers || {};
+    return String(
+        body.token
+        || body.report_token
+        || q.token
+        || hdr['x-report-token']
+        || ''
+    ).trim();
+}
+
+async function getPublicReportPolicy() {
+    const settings = await loadSettings();
+    const rms = (settings && settings.rms) || {};
+    const enabled = String(rms.public_report_enabled || '1') === '1';
+    const token = String(rms.public_report_token || '').trim();
+    return { enabled, token };
+}
 
 async function notifyUser(db, userId, content) {
     const phone = await lookupPhoneByUserId(db, userId);
@@ -235,6 +273,20 @@ function createApp(options = {}) {
         res.sendFile(path.join(__dirname, 'public', 'report.html'));
     });
 
+    app.get('/api/public-report-status', async (req, res) => {
+        try {
+            const policy = await getPublicReportPolicy();
+            return res.json({
+                success: true,
+                enabled: policy.enabled,
+                token_required: !!policy.token
+            });
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json({ success: false, message: '无法读取上报状态' });
+        }
+    });
+
     app.get('/api/check-duplicate-event', async (req, res) => {
         const user = ensureUnifiedSession(req);
         if (!user) return res.status(401).json({ success: false, message: '未登录' });
@@ -259,6 +311,22 @@ function createApp(options = {}) {
 
     app.post('/api/public-report', async (req, res) => {
         // title = 事件地点；联系方式 + 详细情况写入 description；report_type = 求助类型
+        try {
+            const policy = await getPublicReportPolicy();
+            if (!policy.enabled) {
+                return res.status(403).json({
+                    success: false,
+                    message: '公开上报未开放（非保障期间已关闭）'
+                });
+            }
+            if (policy.token && !tokensMatch(readPublicReportToken(req), policy.token)) {
+                return res.status(403).json({ success: false, message: '上报凭证无效' });
+            }
+        } catch (err) {
+            console.error(err);
+            return res.status(500).json({ success: false, message: '提交失败，请稍后重试' });
+        }
+
         const title = String(req.body.title || req.body.location || '').trim();
         const contact = String(req.body.contact || '').trim();
         const details = String(req.body.details || '').trim();
@@ -899,8 +967,11 @@ function createApp(options = {}) {
             }
 
             socket.on('change_status', async (data) => {
-                const { userId, status } = data;
-                let eventId = data.eventId != null ? parseInt(data.eventId, 10) : null;
+                const payload = data || {};
+                const { userId } = payload;
+                const statusNum = parseInt(payload.status, 10);
+                if (!ALLOWED_STATUS.has(statusNum)) return;
+                let eventId = payload.eventId != null ? parseInt(payload.eventId, 10) : null;
                 if (eventId && Number.isNaN(eventId)) eventId = null;
                 if (!canActOnUser(userId)) return;
                 try {
@@ -908,7 +979,7 @@ function createApp(options = {}) {
                         'SELECT status, current_event_id, pending_event_id FROM users WHERE id = ?',
                         [userId]
                     );
-                    if (cur[0] && Number(cur[0].status) === 5 && Number(status) !== 5) {
+                    if (cur[0] && Number(cur[0].status) === 5 && statusNum !== 5) {
                         return;
                     }
                     const fromStatus = cur[0] ? Number(cur[0].status) : null;
@@ -920,14 +991,14 @@ function createApp(options = {}) {
                     if (eventId) {
                         await db.query(
                             'UPDATE users SET status = ?, current_event_id = ?, pending_event_id = NULL WHERE id = ?',
-                            [status, eventId, userId]
+                            [statusNum, eventId, userId]
                         );
                         await db.query(
                             'UPDATE events SET responder_id = ? WHERE id = ?',
                             [userId, eventId]
                         );
                     } else {
-                        await db.query('UPDATE users SET status = ? WHERE id = ?', [status, userId]);
+                        await db.query('UPDATE users SET status = ? WHERE id = ?', [statusNum, userId]);
                     }
                     await broadcastDataUpdate();
 
@@ -939,8 +1010,7 @@ function createApp(options = {}) {
 
                     const actor = actorFromSocket(socket);
                     const uname = await usernameById(db, userId);
-                    const statusNum = Number(status);
-                    const statusName = STATUS_LABEL[statusNum] || String(status);
+                    const statusName = STATUS_LABEL[statusNum] || String(statusNum);
                     const summary = statusNum === 4
                         ? `${uname || userId} 到达现场${eventTitle ? '「' + eventTitle + '」' : ''}`
                         : `${uname || userId} 状态改为 ${statusName}${eventTitle ? '（事件：' + eventTitle + '）' : ''}`;
@@ -1031,10 +1101,11 @@ function createApp(options = {}) {
                     if (typeof ack === 'function') ack({ success: false, message: '需要管理员权限' });
                     return;
                 }
+                data = data || {};
                 const title = String(data.title || '').trim();
                 const contact = String(data.contact || '').trim();
                 const details = String(data.details || '').trim();
-                const priority = parseInt(data.priority, 10) || 3;
+                const priority = clampPriority(data.priority);
                 const force = data.force === true || data.force === 1 || data.force === '1';
                 const reportType = normalizeReportType(data.report_type || data.reportType) || '';
                 // 兼容旧客户端：直接传 description；有联系/详情时写入【类型】前缀供 SLA 识别
@@ -1043,6 +1114,11 @@ function createApp(options = {}) {
                     : String(data.description || '').trim();
                 if (!title || !description) {
                     if (typeof ack === 'function') ack({ success: false, message: '请填写完整信息' });
+                    return;
+                }
+                if (title.length > EVENT_LIMITS.title || contact.length > EVENT_LIMITS.contact
+                    || details.length > EVENT_LIMITS.details || description.length > EVENT_LIMITS.description) {
+                    if (typeof ack === 'function') ack({ success: false, message: '字段过长，请精简后重试' });
                     return;
                 }
                 if (contact || details) {
@@ -1111,13 +1187,18 @@ function createApp(options = {}) {
 
             socket.on('update_event', async (data) => {
                 if (!requireAdmin()) return;
+                data = data || {};
                 const eventId = parseInt(data.eventId, 10);
                 const title = String(data.title || '').trim();
                 const contact = String(data.contact || '').trim();
                 const details = String(data.details || '').trim();
                 const remark = String(data.remark || '').trim();
-                const priority = parseInt(data.priority, 10) || 3;
+                const priority = clampPriority(data.priority);
                 if (!eventId || !title || !contact || !details) return;
+                if (title.length > EVENT_LIMITS.title || contact.length > EVENT_LIMITS.contact
+                    || details.length > EVENT_LIMITS.details || remark.length > EVENT_LIMITS.remark) {
+                    return;
+                }
                 try {
                     const [rows] = await db.query('SELECT description FROM events WHERE id = ? AND status = "未完成"', [eventId]);
                     if (!rows.length) {

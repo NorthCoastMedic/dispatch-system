@@ -42,20 +42,24 @@ function createApp() {
         }
     }, 3600000);
 
-    const mqttClient = mqtt.connect(envGet(local, 'MQTT_BROKER', 'mqtt://127.0.0.1:1883'), {
-        clientId: 'wbgt_backend_' + Math.random().toString(16).substring(2, 10),
-        keepalive: 60,
-        reconnectPeriod: 5000
-    });
-
-    mqttClient.on('connect', () => {
-        console.log(`[WBGT] MQTT 已连接`);
-        mqttClient.subscribe('wbgt/#');
-    });
-
-    mqttClient.on('error', (err) => {
-        console.error('[WBGT] MQTT:', err.message);
-    });
+    const mqttBroker = String(envGet(local, 'MQTT_BROKER', '') || '').trim();
+    let mqttClient = null;
+    if (mqttBroker) {
+        mqttClient = mqtt.connect(mqttBroker, {
+            clientId: 'wbgt_backend_' + Math.random().toString(16).substring(2, 10),
+            keepalive: 60,
+            reconnectPeriod: 5000
+        });
+        mqttClient.on('connect', () => {
+            console.log(`[WBGT] MQTT 已连接`);
+            mqttClient.subscribe('wbgt/#');
+        });
+        mqttClient.on('error', (err) => {
+            console.error('[WBGT] MQTT:', err.message);
+        });
+    } else {
+        console.log('[WBGT] 未配置 MQTT_BROKER，跳过 MQTT 连接');
+    }
 
     function parseProtocol(str) {
         const match = str.match(/W([\d.]+)C:T([\d.]+)C:T([\d.]+)C:H([\d.]+)%(?:.*)/);
@@ -77,6 +81,7 @@ function createApp() {
         };
     }
 
+    if (mqttClient) {
     mqttClient.on('message', async (topic, message) => {
         const rawPayload = message.toString().trim();
         const sensorId = topic.split('/')[1] || 'unknown';
@@ -98,6 +103,7 @@ function createApp() {
             console.error('[WBGT] 归档失败:', err.message);
         }
     });
+    }
 
     app.get('/api/history/:sensorId', async (req, res) => {
         try {

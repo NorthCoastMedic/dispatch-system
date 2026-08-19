@@ -65,7 +65,15 @@ function startSetupMode() {
     });
 }
 
-function startFull() {
+function isUsableSessionSecret(value) {
+    const s = String(value || '').trim();
+    if (s.length < 16) return false;
+    if (s === 'beian_unified_secret') return false;
+    if (s.startsWith('change_me') || s.startsWith('dev_only')) return false;
+    return true;
+}
+
+async function startFull() {
     const { Server } = require('socket.io');
     const { ensureUnifiedSession, requireUnifiedLogin } = require('./apps/_shared/session');
     const {
@@ -73,6 +81,8 @@ function startFull() {
     } = require('./apps/_shared/systemSettings');
     const authTokens = require('./apps/_shared/authTokens');
     const rateLimit = require('./apps/_shared/rateLimit');
+    const { getOrgPool, ensureSessionTables } = require('./apps/_shared/orgDb');
+    const MysqlSessionStore = require('./apps/_shared/mysqlSessionStore');
     const { createApp: createPortal } = require('./apps/portal');
     const { createApp: createRms } = require('./apps/rms');
     const { createApp: createRtls } = require('./apps/rtls');
@@ -85,16 +95,24 @@ function startFull() {
     const ACCESS_TTL_SEC = Number(envGet(rootEnv, 'TOKEN_ACCESS_TTL_SEC', '900')) || 900;
     const REFRESH_TTL_SEC = Number(envGet(rootEnv, 'TOKEN_REFRESH_TTL_SEC', '86400')) || 86400;
 
-    if (!SESSION_SECRET || SESSION_SECRET === 'beian_unified_secret' || SESSION_SECRET.startsWith('change_me')) {
-        console.warn('[安全] 请在根目录 .env 设置强随机 SESSION_SECRET，勿使用示例值。');
+    if (!isUsableSessionSecret(SESSION_SECRET)) {
+        console.error('[安全] 未配置强随机 SESSION_SECRET，拒绝启动。');
+        console.error('  请在根目录 .env 设置至少 16 位随机串，勿使用示例值。');
+        console.error('  空仓库请先 npm start 走安装页（会自动写入 .env），或复制 .env.example 为 .env 后填写。');
+        process.exit(1);
     }
 
+    const orgPool = getOrgPool();
+    await ensureSessionTables(orgPool);
+
     authTokens.configure({
-        secret: SESSION_SECRET || ('dev_only_change_me_' + String(PORT)),
+        secret: SESSION_SECRET,
         trustProxy: TRUST_PROXY,
         accessTtlSec: ACCESS_TTL_SEC,
-        refreshTtlSec: REFRESH_TTL_SEC
+        refreshTtlSec: REFRESH_TTL_SEC,
+        pool: orgPool
     });
+    await authTokens.hydrateRefreshStore();
     rateLimit.configure({ trustProxy: TRUST_PROXY });
 
     const app = express();
@@ -111,7 +129,8 @@ function startFull() {
 
     const sessionMiddleware = session({
         name: 'beian.sid',
-        secret: SESSION_SECRET || 'dev_only_change_me_' + String(PORT),
+        secret: SESSION_SECRET,
+        store: new MysqlSessionStore(orgPool),
         resave: false,
         saveUninitialized: false,
         cookie: {
@@ -201,6 +220,9 @@ function startFull() {
     const rtlsApp = createRtls();
     const wbgtApp = createWbgt();
 
+    app.post('/api/public-report', (req, res, next) => rmsApp(req, res, next));
+    app.get('/api/public-report-status', (req, res, next) => rmsApp(req, res, next));
+
     app.use('/rms', rmsApp);
     app.use('/rtls', requireUnifiedLogin, rtlsApp);
     app.use('/wbgt', requireUnifiedLogin, wbgtApp);
@@ -222,7 +244,7 @@ function startFull() {
 async function main() {
     const needed = await setup.needsSetup();
     if (needed) startSetupMode();
-    else startFull();
+    else await startFull();
 }
 
 main().catch((err) => {

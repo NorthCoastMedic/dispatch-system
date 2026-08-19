@@ -62,7 +62,8 @@ function escapeHtml(str) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function personDisplayName(u) {
@@ -478,14 +479,13 @@ function renderDashboard(users, events) {
             eventInfo = `<div class="text-[11px] text-amber-300 font-medium mt-0.5">待确认指派：${escapeHtml(u.pending_event_title)}</div>`;
         }
         const displayName = personDisplayName(u);
-        const safeName = displayName.replace(/'/g, '');
         const agencyLabel = String(u.agency || '').trim();
         const canCancel = !!(u.current_event_id || u.pending_event_id);
 
         return `
             <div class="px-2.5 py-2 flex justify-between items-center gap-2 ${cardClass}">
                 <div class="min-w-0 flex-1 cursor-pointer rounded-sm -m-0.5 p-0.5 transition"
-                     onclick="openPersonnelCertsModal(${u.id})"
+                     data-action="open-certs" data-user-id="${Number(u.id) || 0}"
                      title="点击查看详细信息">
                     <div class="dc-name font-semibold text-sm flex items-center gap-2 flex-wrap">
                         ${escapeHtml(displayName)}
@@ -494,12 +494,12 @@ function renderDashboard(users, events) {
                     </div>
                     ${eventInfo}
                 </div>
-                <div class="flex items-center gap-1.5 shrink-0" onclick="event.stopPropagation()">
+                <div class="flex items-center gap-1.5 shrink-0 dc-person-actions">
                     ${canCancel ? `
-                    <button onclick="unassignEvent(${u.id}, '${safeName}')" class="dc-btn dc-btn-cancel">
+                    <button type="button" data-action="unassign" data-user-id="${Number(u.id) || 0}" data-name="${escapeHtml(displayName)}" class="dc-btn dc-btn-cancel">
                         取消指派
                     </button>` : ''}
-                    <button onclick="openAssignModal(${u.id}, '${safeName}')" class="dc-btn dc-btn-assign">
+                    <button type="button" data-action="assign" data-user-id="${Number(u.id) || 0}" data-name="${escapeHtml(displayName)}" class="dc-btn dc-btn-assign">
                         指派
                     </button>
                     <div>${statusTagMap[u.status] || statusTagMap[2]}</div>
@@ -1787,6 +1787,31 @@ function confirmBroadcast() {
 }
 
 function bindAdminActions() {
+    const personnelListEl = document.getElementById('personnel-list');
+    if (personnelListEl && !personnelListEl.dataset.bound) {
+        personnelListEl.dataset.bound = '1';
+        personnelListEl.addEventListener('click', (e) => {
+            const actionEl = e.target.closest('[data-action]');
+            if (!actionEl || !personnelListEl.contains(actionEl)) return;
+            const action = actionEl.getAttribute('data-action');
+            const userId = parseInt(actionEl.getAttribute('data-user-id'), 10);
+            const name = actionEl.getAttribute('data-name') || '';
+            if (action === 'open-certs' && userId) {
+                openPersonnelCertsModal(userId);
+                return;
+            }
+            if (action === 'unassign' && userId) {
+                e.stopPropagation();
+                unassignEvent(userId, name);
+                return;
+            }
+            if (action === 'assign' && userId) {
+                e.stopPropagation();
+                openAssignModal(userId, name);
+            }
+        });
+    }
+
     const btnOpen = document.getElementById('btn-admin-add-event');
     bindExportActivitySummary();
     const modal = document.getElementById('modal-admin-add-event');

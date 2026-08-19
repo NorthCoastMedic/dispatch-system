@@ -179,3 +179,25 @@ CREATE TABLE IF NOT EXISTS dispatch_message_logs (
   KEY idx_dml_batch (batch_id),
   KEY idx_dml_actor_time (actor_user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sessions (
+  session_id VARCHAR(128) NOT NULL,
+  expires INT UNSIGNED NOT NULL,
+  data MEDIUMTEXT,
+  PRIMARY KEY (session_id),
+  KEY idx_sessions_expires (expires)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS auth_refresh_tokens (
+  jti VARCHAR(64) NOT NULL,
+  user_id INT NOT NULL,
+  username VARCHAR(64) NULL,
+  role VARCHAR(32) NULL,
+  volunteer_id INT NULL,
+  family_id VARCHAR(64) NOT NULL,
+  exp INT UNSIGNED NOT NULL,
+  revoked TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (jti),
+  KEY idx_art_user (user_id),
+  KEY idx_art_exp (exp)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

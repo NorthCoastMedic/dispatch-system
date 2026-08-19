@@ -4,8 +4,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const mysql = require('mysql2/promise');
-const { loadLocalEnv, envGet } = require('./env');
+const { getOrgPool } = require('./orgDb');
 
 const LEGACY_JSON = path.join(__dirname, 'data', 'system-settings.json');
 
@@ -402,6 +401,27 @@ const CATEGORY_DEFS = {
                         default: '30'
                     }
                 }
+            },
+            public_report: {
+                label: '公开上报',
+                description: '外部上报表（/rms/report.html）无需登录即可建单并通知指挥台。非保障期间请关闭；活动期建议填写上报凭证，把带 ?token= 的链接发给现场。',
+                fields: {
+                    public_report_enabled: {
+                        label: '开放公开上报',
+                        type: 'toggle',
+                        options: [
+                            { value: '1', label: '打开' },
+                            { value: '0', label: '关闭' }
+                        ],
+                        default: '1'
+                    },
+                    public_report_token: {
+                        label: '上报凭证（可选）',
+                        type: 'text',
+                        placeholder: '留空则不校验；填写后须在链接加 ?token=',
+                        default: ''
+                    }
+                }
             }
         }
     }
@@ -420,7 +440,6 @@ const SLA_TYPE_KEYS = {
     '其他问题求助': 'other'
 };
 
-let pool = null;
 let cache = null;
 let readyPromise = null;
 
@@ -456,19 +475,7 @@ function defaults() {
 }
 
 function getPool() {
-    if (pool) return pool;
-    const portalEnv = loadLocalEnv(path.join(__dirname, '..', 'portal'));
-    pool = mysql.createPool({
-        host: envGet(portalEnv, 'DB_HOST', '127.0.0.1'),
-        port: Number(envGet(portalEnv, 'DB_PORT', '3306')),
-        user: envGet(portalEnv, 'DB_USER', 'org'),
-        password: envGet(portalEnv, 'DB_PASSWORD', ''),
-        database: envGet(portalEnv, 'DB_NAME', 'org'),
-        waitForConnections: true,
-        connectionLimit: 5,
-        charset: 'utf8mb4'
-    });
-    return pool;
+    return getOrgPool();
 }
 
 function normalizeFieldValue(fieldDef, raw) {
@@ -857,7 +864,7 @@ function resolveSlaFromSettings(settings, reportTypeLabel, priority) {
     };
 }
 
-const SECRET_SETTING_KEYS = new Set(['wecom_webhook_url']);
+const SECRET_SETTING_KEYS = new Set(['wecom_webhook_url', 'public_report_token']);
 
 /** 非管理员读接口去掉密钥，页面功能仍可用（品牌/导航不依赖 Webhook） */
 function redactSettingsForClient(settings, includeSecrets) {

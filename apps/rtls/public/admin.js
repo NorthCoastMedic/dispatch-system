@@ -1,6 +1,28 @@
 let allDevices = [];
 let allMarkers = [];
 
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function jsonAttr(obj) {
+    return escapeHtml(JSON.stringify(obj == null ? {} : obj));
+}
+
+function readJsonAttr(el) {
+    if (!el) return null;
+    try {
+        return JSON.parse(el.getAttribute('data-json') || 'null');
+    } catch (_) {
+        return null;
+    }
+}
+
 // 弹窗内部地图全局变量
 let adminModalMap = null;
 let adminModalMarker = null;
@@ -59,9 +81,14 @@ function renderSchedules(schedules) {
                 <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 75%;">
                     <span class="sched-date" style="font-family: monospace;">${dateStr}</span>
                     <b class="sched-time" style="margin: 0 4px;">${timeStr}</b>
-                    <span class="sched-name" style="font-weight: 500;">${sched.al_name}</span>
+                    <span class="sched-name" style="font-weight: 500;">${escapeHtml(sched.al_name)}</span>
                 </div>
-                <button class="primary" style="padding: 2px 8px; font-size: 12px; height: 24px; line-height: 20px; margin: 0;" onclick='window.editSchedule(${JSON.stringify(sched)})'>编辑</button>
+                <button type="button" class="primary" style="padding: 2px 8px; font-size: 12px; height: 24px; line-height: 20px; margin: 0;" data-action="edit-schedule" data-json="${jsonAttr({
+                    id: sched.id,
+                    al_date: sched.al_date,
+                    al_time: sched.al_time,
+                    al_name: sched.al_name
+                })}">编辑</button>
             </div>
         `;
     }).join('');
@@ -89,10 +116,17 @@ function renderCards(data = allDevices) {
     grid.innerHTML = data.map(dev => {
         const isEnabled = parseInt(dev.is_enabled) === 1;
         return `
-            <div class="device-card ${isEnabled ? 'enabled' : 'disabled'}" onclick='window.editDevice(${JSON.stringify(dev)})'>
-                <strong>${dev.nickname || '💡 未命名终端'}</strong>
-                <small class="font-mono">硬件ID: ${dev.device_id}</small>
-                <small>战术角色: ${dev.role || '未划分'}</small>
+            <div class="device-card ${isEnabled ? 'enabled' : 'disabled'}" data-action="edit-device" data-json="${jsonAttr({
+                device_id: dev.device_id,
+                nickname: dev.nickname,
+                role: dev.role,
+                icon_type: dev.icon_type,
+                remark: dev.remark,
+                is_enabled: dev.is_enabled
+            })}">
+                <strong>${escapeHtml(dev.nickname || '💡 未命名终端')}</strong>
+                <small class="font-mono">硬件ID: ${escapeHtml(dev.device_id)}</small>
+                <small>战术角色: ${escapeHtml(dev.role || '未划分')}</small>
                 <small style="margin-top:4px; font-weight: bold; color: ${isEnabled ? '#22c55e' : '#ef4444'}">
                     ${isEnabled ? '🟢 已同步大屏' : '🔴 已在地图隐藏'}
                 </small>
@@ -250,15 +284,22 @@ function renderMarkers() {
 
         return `
             <tr>
-                <td><strong>${marker.name}</strong></td>
+                <td><strong>${escapeHtml(marker.name)}</strong></td>
                 <td>${badge}</td>
                 <td class="font-mono" style="color:#475569;">${parseFloat(marker.lat).toFixed(6)}, ${parseFloat(marker.lng).toFixed(6)}</td>
-                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${marker.remark || ''}">
-                    ${marker.remark || '<span style="color:#cbd5e1;">无任何特殊备注</span>'}
+                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(marker.remark || '')}">
+                    ${marker.remark ? escapeHtml(marker.remark) : '<span style="color:#cbd5e1;">无任何特殊备注</span>'}
                 </td>
                 <td style="text-align: center;">
-                    <button class="primary" style="padding: 4px 10px; font-size:12px;" onclick='window.openMarkerModal(${JSON.stringify(marker)})'>编辑</button>
-                    <button class="danger" style="padding: 4px 10px; font-size:12px; margin-left: 4px;" onclick="window.deleteMarker(${marker.id})">撤回</button>
+                    <button type="button" class="primary" style="padding: 4px 10px; font-size:12px;" data-action="edit-marker" data-json="${jsonAttr({
+                        id: marker.id,
+                        name: marker.name,
+                        type: marker.type,
+                        lat: marker.lat,
+                        lng: marker.lng,
+                        remark: marker.remark
+                    })}">编辑</button>
+                    <button type="button" class="danger" style="padding: 4px 10px; font-size:12px; margin-left: 4px;" data-action="delete-marker" data-id="${Number(marker.id) || 0}">撤回</button>
                 </td>
             </tr>
         `;
@@ -383,4 +424,45 @@ window.deleteMarker = function(id) {
     }
 };
 
+function bindAdminDelegates() {
+    const sched = document.getElementById('schedule-list');
+    if (sched && !sched.dataset.bound) {
+        sched.dataset.bound = '1';
+        sched.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action="edit-schedule"]');
+            if (!btn) return;
+            const data = readJsonAttr(btn);
+            if (data) window.editSchedule(data);
+        });
+    }
+    const grid = document.getElementById('device-grid');
+    if (grid && !grid.dataset.bound) {
+        grid.dataset.bound = '1';
+        grid.addEventListener('click', (e) => {
+            const card = e.target.closest('[data-action="edit-device"]');
+            if (!card) return;
+            const data = readJsonAttr(card);
+            if (data) window.editDevice(data);
+        });
+    }
+    const tbody = document.getElementById('marker-list-body');
+    if (tbody && !tbody.dataset.bound) {
+        tbody.dataset.bound = '1';
+        tbody.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('[data-action="edit-marker"]');
+            if (editBtn) {
+                const data = readJsonAttr(editBtn);
+                if (data) window.openMarkerModal(data);
+                return;
+            }
+            const delBtn = e.target.closest('[data-action="delete-marker"]');
+            if (delBtn) {
+                const id = parseInt(delBtn.getAttribute('data-id'), 10);
+                if (id) window.deleteMarker(id);
+            }
+        });
+    }
+}
+
+bindAdminDelegates();
 loadData();
