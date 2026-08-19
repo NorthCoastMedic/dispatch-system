@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. 初始化地图
-    var map = L.map('map', { zoomControl: false }).setView([38.992, 121.592], 16);
+    // 1. 初始化地图：先落北京天安门，再尝试浏览器定位
+    var mapHomeLocked = false;
+    var map = L.map('map', { zoomControl: false }).setView(RTLS_DEFAULT_CENTER, RTLS_DEFAULT_ZOOM);
     window.globalLeafletMap = map;
+    locateMapByBrowser(map, RTLS_DEFAULT_ZOOM, function () { return mapHomeLocked; });
     L.tileLayer('https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}').addTo(map);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -333,6 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const currentInterval = parseInt(document.getElementById('marker-interval')?.value || 500);
             renderDynamicMarkers(cachedPathArray, currentInterval);
 
+            mapHomeLocked = true;
             map.fitBounds(window.kmlLayer.getBounds());
         } catch (error) {
             console.error("拉取或绘制 KML 失败:", error);
@@ -349,6 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.openSidebar = (id) => {
         const c = deviceConfigs[id] || {};
         if (c.lat && c.lon) {
+            mapHomeLocked = true;
             map.setView([c.lat, c.lon], 18);
         }
         const updateText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };

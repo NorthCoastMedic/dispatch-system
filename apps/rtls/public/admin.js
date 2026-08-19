@@ -328,9 +328,11 @@ window.openMarkerModal = function(markerData = null) {
 
     document.getElementById('marker-overlay').style.display = 'flex';
 
-    // 默认大连坐标，如果有数据则使用数据的坐标
-    const initLat = (markerData && markerData.lat) ? markerData.lat : 38.992;
-    const initLng = (markerData && markerData.lng) ? markerData.lng : 121.592;
+    const hasSavedPos = !!(markerData && markerData.lat && markerData.lng);
+    const initLat = hasSavedPos ? markerData.lat : RTLS_DEFAULT_CENTER[0];
+    const initLng = hasSavedPos ? markerData.lng : RTLS_DEFAULT_CENTER[1];
+    window._rtlsAdminLocateToken = (window._rtlsAdminLocateToken || 0) + 1;
+    const locateToken = window._rtlsAdminLocateToken;
 
     setTimeout(() => {
         if (!adminModalMap) {
@@ -367,6 +369,13 @@ window.openMarkerModal = function(markerData = null) {
                 adminModalMap.removeLayer(adminModalMarker);
                 adminModalMarker = null;
             }
+        }
+
+        if (!hasSavedPos) {
+            locateMapByBrowser(adminModalMap, 16, function () {
+                return window._rtlsAdminLocateToken !== locateToken
+                    || document.getElementById('marker-overlay').style.display === 'none';
+            });
         }
     }, 250); 
 };
