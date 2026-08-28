@@ -148,33 +148,32 @@ main {
 
 .search-form { 
     display: flex; 
-    background: var(--white); 
-    border-radius: 30px; 
-    padding: 5px; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    border: 2px solid var(--primary-color);
+    background: #fff; 
+    border-radius: 0; 
+    padding: 0; 
+    box-shadow: none;
+    border: 2px solid #0b2d6b;
 }
 
 .search-box { 
     flex: 1; 
-    padding: 12px 20px; 
+    padding: 12px 14px; 
     border: none; 
-    border-radius: 30px; 
+    border-radius: 0; 
     outline: none; 
     font-size: 16px; 
-    background: transparent;
+    background: #fff;
 }
 
 .search-btn { 
-    padding: 12px 25px; 
-    background: var(--primary-color); 
-    color: var(--white); 
+    padding: 12px 22px; 
+    background: #0b2d6b; 
+    color: #fff; 
     border: none; 
-    border-radius: 25px; 
+    border-radius: 0; 
     cursor: pointer; 
-    font-size: 16px; 
-    font-weight: bold; 
-    transition: background 0.3s;
+    font-size: 15px; 
+    font-weight: 700; 
 }
 
 .search-btn:hover { background: var(--primary-hover); }

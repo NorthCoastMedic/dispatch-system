@@ -99,6 +99,53 @@ function cardScanPayload(cardNo, branding) {
     return qrLocal.scanTarget(cardNo, base);
 }
 
+function foundCardLinkFromSettings(settings, cardNo) {
+    const b = (settings && settings.branding) || {};
+    if (String(b.id_card_found_enabled || '0') !== '1') return null;
+    const label = String(b.id_card_found_label || '').trim();
+    let url = String(b.id_card_found_url || '').trim();
+    if (!label || !url) return null;
+    if (url.includes('{no}')) {
+        url = url.replace(/\{no\}/g, encodeURIComponent(String(cardNo || '')));
+    }
+    return { label, url };
+}
+
+async function loadVolunteerCerts(volunteerId) {
+    const certsIn = (await query(
+        'SELECT * FROM certs_internal WHERE volunteer_id = ? ORDER BY issue_date DESC',
+        [volunteerId]
+    )).map((c) => ({ ...c, issue_date: formatDateInput(c.issue_date) }));
+    const certsOut = (await query(
+        'SELECT * FROM certs_external WHERE volunteer_id = ? ORDER BY expiry_date DESC',
+        [volunteerId]
+    )).map((c) => ({
+        ...c,
+        issue_date: formatDateInput(c.issue_date),
+        expiry_date: formatDateInput(c.expiry_date)
+    }));
+    return { certsIn, certsOut };
+}
+
+async function lookupVolunteerProfile(q) {
+    const rows = await query(
+        'SELECT id, name, badge_number, blood_type, join_date, status, avatar_url, agency FROM volunteers WHERE name LIKE ? OR badge_number = ? LIMIT 1',
+        [`%${q}%`, q]
+    );
+    const row = rows[0] || null;
+    if (!row) {
+        return { volunteer: null, certsIn: [], certsOut: [], avatarUrl: '' };
+    }
+    const volunteer = { ...row, join_date: formatDateInput(row.join_date) };
+    const certs = await loadVolunteerCerts(volunteer.id);
+    return {
+        volunteer,
+        certsIn: certs.certsIn,
+        certsOut: certs.certsOut,
+        avatarUrl: publicAvatarUrl(volunteer.avatar_url)
+    };
+}
+
 function exposeCardErr(err) {
     if (err && err.expose) return err.message;
     return '';
@@ -290,30 +337,11 @@ app.get('/search.php', async (req, res) => {
                 error: '查询过于频繁，请稍后再试。'
             });
         }
-        const rows = await query(
-            'SELECT id, name, badge_number, blood_type, join_date, status, avatar_url FROM volunteers WHERE name LIKE ? OR badge_number = ? LIMIT 1',
-            [`%${q}%`, q]
-        );
-        volunteer = rows[0] || null;
-        if (volunteer) {
-            volunteer = {
-                ...volunteer,
-                join_date: formatDateInput(volunteer.join_date)
-            };
-            certsIn = (await query(
-                'SELECT * FROM certs_internal WHERE volunteer_id = ? ORDER BY issue_date DESC',
-                [volunteer.id]
-            )).map((c) => ({ ...c, issue_date: formatDateInput(c.issue_date) }));
-            certsOut = (await query(
-                'SELECT * FROM certs_external WHERE volunteer_id = ? ORDER BY expiry_date DESC',
-                [volunteer.id]
-            )).map((c) => ({
-                ...c,
-                issue_date: formatDateInput(c.issue_date),
-                expiry_date: formatDateInput(c.expiry_date)
-            }));
-            avatarUrl = publicAvatarUrl(volunteer.avatar_url);
-        }
+        const found = await lookupVolunteerProfile(q);
+        volunteer = found.volunteer;
+        certsIn = found.certsIn;
+        certsOut = found.certsOut;
+        avatarUrl = found.avatarUrl;
     }
 
     res.render('search', {
@@ -326,9 +354,59 @@ app.get('/search.php', async (req, res) => {
     });
 });
 
+// 扫码档案页（与 search.php 同一套查询，无检索框）
+app.get('/profile.php', async (req, res) => {
+    const q = (req.query.query || '').trim();
+    const cardNo = String(req.query.no || '').trim();
+    const settings = await loadSettings();
+    const foundLink = foundCardLinkFromSettings(settings, cardNo);
+    let volunteer = null;
+    let certsIn = [];
+    let certsOut = [];
+    let avatarUrl = '';
+    let error = '';
+
+    if (q) {
+        const lim = rateLimit.searchGet.hit('ip:' + rateLimit.clientIp(req) + ':profile');
+        if (!lim.ok) {
+            return res.status(429).render('profile', {
+                user: currentUser(req),
+                q,
+                cardNo,
+                volunteer: null,
+                certsIn: [],
+                certsOut: [],
+                avatarUrl: '',
+                foundLink,
+                error: '查询过于频繁，请稍后再试。'
+            });
+        }
+        const found = await lookupVolunteerProfile(q);
+        volunteer = found.volunteer;
+        certsIn = found.certsIn;
+        certsOut = found.certsOut;
+        avatarUrl = found.avatarUrl;
+        if (!volunteer) error = '未检索到符合条件的队员。';
+    }
+
+    res.render('profile', {
+        user: currentUser(req),
+        q,
+        cardNo,
+        volunteer,
+        certsIn,
+        certsOut,
+        avatarUrl,
+        foundLink,
+        error
+    });
+});
+
 // 实体证件扫码
 app.get('/id_card.php', async (req, res) => {
     const no = String(req.query.no || '').trim();
+    const settings = await loadSettings();
+    const foundLink = foundCardLinkFromSettings(settings, no);
     const lim = rateLimit.searchGet.hit('ip:' + rateLimit.clientIp(req) + ':card');
     if (!lim.ok) {
         return res.status(429).render('id_card', {
@@ -340,7 +418,7 @@ app.get('/id_card.php', async (req, res) => {
             certsIn: [],
             certsOut: [],
             avatarUrl: '',
-            profileQuery: ''
+            foundLink
         });
     }
 
@@ -351,12 +429,13 @@ app.get('/id_card.php', async (req, res) => {
     let certsIn = [];
     let certsOut = [];
     let avatarUrl = '';
-    let profileQuery = '';
+    let pageFoundLink = foundLink;
 
     if (no) {
         const row = await idCards.getByCardNo(no);
         if (row) {
             cardNo = row.card_no;
+            pageFoundLink = foundCardLinkFromSettings(settings, cardNo);
             if (row.status === 'lost') {
                 view = 'lost';
                 message = '该证件已挂失。如拾获请交还组织，不要使用。';
@@ -366,7 +445,8 @@ app.get('/id_card.php', async (req, res) => {
             } else {
                 const jump = String(row.badge_number || row.name || '').trim();
                 if (jump) {
-                    return res.redirect('/search.php?query=' + encodeURIComponent(jump));
+                    const qs = new URLSearchParams({ query: jump, no: row.card_no });
+                    return res.redirect('/profile.php?' + qs.toString());
                 }
                 view = 'unbound';
                 message = '该证件尚未绑定队员。';
@@ -383,7 +463,7 @@ app.get('/id_card.php', async (req, res) => {
         certsIn,
         certsOut,
         avatarUrl,
-        profileQuery
+        foundLink: pageFoundLink
     });
 });
 

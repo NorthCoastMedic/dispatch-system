@@ -246,6 +246,27 @@ const CATEGORY_DEFS = {
                 optional: true,
                 default: '',
                 placeholder: 'http://192.168.1.18:12000'
+            },
+            id_card_found_enabled: {
+                label: '显示证件拾获登记入口',
+                type: 'toggle',
+                options: [
+                    { value: '1', label: '打开' },
+                    { value: '0', label: '关闭' }
+                ],
+                default: '0'
+            },
+            id_card_found_label: {
+                label: '拾获登记按钮文案',
+                type: 'text',
+                default: '捡到证件？登记信息'
+            },
+            id_card_found_url: {
+                label: '拾获登记链接',
+                type: 'text',
+                optional: true,
+                default: '',
+                placeholder: 'https://... 可用 {no} 代入证件号'
             }
         }
     },
@@ -572,6 +593,25 @@ function validateSettings(settings) {
             }
         } catch {
             errors.push('证件二维码根地址格式无效');
+        }
+    }
+    const foundOn = String((settings.branding && settings.branding.id_card_found_enabled) || '0') === '1';
+    const foundLabel = String((settings.branding && settings.branding.id_card_found_label) || '').trim();
+    const foundUrl = String((settings.branding && settings.branding.id_card_found_url) || '').trim();
+    if (foundOn) {
+        if (!foundLabel) errors.push('拾获登记按钮文案不能为空');
+        if (!foundUrl) {
+            errors.push('拾获登记链接不能为空');
+        }
+    }
+    if (foundUrl) {
+        try {
+            const u = new URL(foundUrl.replace(/\{no\}/g, 'x'));
+            if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+                errors.push('拾获登记链接必须以 http:// 或 https:// 开头');
+            }
+        } catch {
+            errors.push('拾获登记链接格式无效');
         }
     }
     const b = settings.branding || {};

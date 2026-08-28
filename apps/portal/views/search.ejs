@@ -1,126 +1,72 @@
 <%- include('partials/header') %>
 <style>
-    body { background-color: #f4f7f6; }
-    .search-container { text-align: center; margin: 40px auto; max-width: 600px; padding: 0 15px; }
-    .search-box { width: 70%; padding: 14px 20px; border: 2px solid #0056b3; border-radius: 30px 0 0 30px; outline: none; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .search-btn { width: 25%; padding: 14px; background: #0056b3; color: white; border: 2px solid #0056b3; border-radius: 0 30px 30px 0; cursor: pointer; font-size: 16px; font-weight: bold; transition: background 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .search-btn:hover { background: #004494; }
-    .profile-wrapper { max-width: 800px; margin: 0 auto 50px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); overflow: hidden; }
-    .profile-header { background: linear-gradient(135deg, #0056b3, #007bff); color: white; padding: 30px 40px; display: flex; align-items: center; gap: 30px; }
-    .profile-avatar { width: 110px; height: 110px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.4); object-fit: cover; background: #fff; }
-    .profile-info h2 { margin: 0 0 12px 0; font-size: 26px; letter-spacing: 1px; }
-    .info-tag { display: inline-block; padding: 5px 12px; background: rgba(255,255,255,0.15); border-radius: 6px; font-size: 14px; margin-right: 8px; margin-bottom: 8px; }
-    .tag-active { background: #28a745; font-weight: bold; }
-    .tag-inactive { background: #dc3545; font-weight: bold; }
-    .cert-body { padding: 30px 40px; }
-    .cert-section { margin-bottom: 30px; }
-    .cert-section h3 { border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; color: #333; font-size: 18px; margin-bottom: 20px; }
-    .cert-list { list-style: none; padding: 0; margin: 0; }
-    .cert-item { background: #fdfdfd; border: 1px solid #eee; border-left: 5px solid #0056b3; padding: 16px 20px; margin-bottom: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s, box-shadow 0.2s; }
-    .cert-item:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
-    .cert-name { font-weight: bold; color: #222; font-size: 16px; }
-    .cert-meta { font-size: 13px; color: #777; margin-top: 6px; }
-    .cert-btn { background: #eef2f5; color: #0056b3; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: bold; transition: background 0.2s; white-space: nowrap; cursor: pointer; border: none; }
-    .cert-btn:hover { background: #0056b3; color: white; }
-    @media (max-width: 600px) {
-        .profile-header { flex-direction: column; text-align: center; }
-        .cert-item { flex-direction: column; align-items: flex-start; gap: 15px; }
-        .cert-btn { align-self: flex-start; }
+    body { background-color: #d9e4f4; }
+    .search-bar { max-width: 820px; margin: 24px auto 18px; padding: 0 12px; }
+    .search-form {
+        display: flex;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+        background: #fff;
+        border: 2px solid #0b2d6b;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: hidden;
+    }
+    .search-box, .search-box:focus {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 14px;
+        border: 0;
+        border-radius: 0;
+        outline: none;
+        font-size: 16px;
+        background: #fff;
+        box-shadow: none;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    .search-btn, .search-btn:hover {
+        flex: 0 0 112px;
+        padding: 12px 10px;
+        background: #0b2d6b;
+        color: #fff;
+        border: 0;
+        border-left: 2px solid #0b2d6b;
+        border-radius: 0;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 700;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    .search-btn:hover { background: #082253; }
+    .search-err { text-align: center; color: #b45309; font-weight: 700; margin: 12px 0 0; }
+    .search-miss { text-align: center; color: #b42318; font-weight: 700; margin: 28px 12px; }
+    @media (max-width: 640px) {
+        .search-bar { margin: 16px 0 12px; padding: 0 12px; }
+        .search-form { flex-direction: column; }
+        .search-box { border-bottom: 2px solid #0b2d6b; }
+        .search-btn, .search-btn:hover { flex: none; width: 100%; border-left: 0; }
     }
 </style>
-<main style="flex: 1;">
-    <div class="search-container">
+<main style="flex: 1;" class="vp-page">
+    <div class="search-bar">
         <form method="GET" class="search-form">
             <input type="text" name="query" class="search-box" placeholder="请输入人员姓名或内部编号..." value="<%= q %>" required>
             <button type="submit" class="search-btn">档案检索</button>
         </form>
         <% if (typeof error !== 'undefined' && error) { %>
-        <p style="text-align:center;color:#b45309;font-weight:bold;margin-top:16px;"><%= error %></p>
+        <p class="search-err"><%= error %></p>
         <% } %>
     </div>
 
     <% if (q) { %>
         <% if (volunteer) { %>
-        <div class="profile-wrapper">
-            <div class="profile-header">
-                <img src="<%= avatarUrl %>" class="profile-avatar" alt="队员照片">
-                <div class="profile-info">
-                    <h2><%= volunteer.name %></h2>
-                    <div>
-                        <span class="info-tag">编号：<%= volunteer.badge_number %></span>
-                        <span class="info-tag">血型：<%= volunteer.blood_type || '未记录' %></span>
-                        <span class="info-tag">入队：<%= volunteer.join_date || '未知' %></span>
-                        <span class="info-tag <%= volunteer.status === 'active' ? 'tag-active' : 'tag-inactive' %>">
-                            <%= volunteer.status === 'active' ? '● 在职状态' : '○ 离队状态' %>
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div class="cert-body">
-                <div class="cert-section">
-                    <h3>📋 队内认证与资质证明</h3>
-                    <ul class="cert-list">
-                        <% if (certsIn.length) { %>
-                            <% certsIn.forEach(function(c) { %>
-                            <li class="cert-item">
-                                <div>
-                                    <div class="cert-name"><%= c.cert_name %></div>
-                                    <div class="cert-meta">获得日期：<%= c.issue_date %></div>
-                                </div>
-                                <% if (c.image_url) { %>
-                                <button class="cert-btn" onclick="showImageModal('get_cert.php?file=<%= encodeURIComponent(c.image_url) %>')">查看凭证</button>
-                                <% } %>
-                            </li>
-                            <% }) %>
-                        <% } else { %>
-                            <li style="color: #999; font-size: 14px; padding: 10px 0;">暂无队内认证技能。</li>
-                        <% } %>
-                    </ul>
-                </div>
-                <div class="cert-section">
-                    <h3>🛡️ 通用执业资质</h3>
-                    <ul class="cert-list">
-                        <% if (certsOut.length) { %>
-                            <% certsOut.forEach(function(c) { %>
-                            <li class="cert-item" style="border-left-color: #28a745;">
-                                <div>
-                                    <div class="cert-name"><%= c.cert_name %></div>
-                                    <div class="cert-meta">
-                                        取得日期：<%= c.issue_date %> |
-                                        有效期至：<span style="color: #dc3545; font-weight: bold;"><%= c.expiry_date %></span>
-                                    </div>
-                                </div>
-                                <% if (c.image_url) { %>
-                                <button class="cert-btn" onclick="showImageModal('get_cert.php?file=<%= encodeURIComponent(c.image_url) %>')" style="color: #28a745;">查看凭证</button>
-                                <% } %>
-                            </li>
-                            <% }) %>
-                        <% } else { %>
-                            <li style="color: #999; font-size: 14px; padding: 10px 0;">暂无外部通用资质录入。</li>
-                        <% } %>
-                    </ul>
-                </div>
-            </div>
-        </div>
+            <%- include('partials/volunteer_profile') %>
         <% } else { %>
-            <div style="text-align:center; color:#dc3545; font-weight:bold; margin-top:30px;">❌ 未检索到符合条件的队员，请核对姓名或编号。</div>
+            <div class="search-miss">未检索到符合条件的队员，请核对姓名或编号。</div>
         <% } %>
     <% } %>
 </main>
-
-<div id="imageModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); align-items: center; justify-content: center; backdrop-filter: blur(5px);" onclick="closeImageModal()">
-    <span style="position: absolute; top: 20px; right: 30px; color: white; font-size: 40px; font-weight: bold; cursor: pointer;">&times;</span>
-    <img id="modalImage" style="max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); object-fit: contain;">
-</div>
-<script>
-function showImageModal(imageSrc) {
-    var modal = document.getElementById("imageModal");
-    var modalImg = document.getElementById("modalImage");
-    modalImg.src = imageSrc;
-    modal.style.display = "flex";
-}
-function closeImageModal() {
-    document.getElementById("imageModal").style.display = "none";
-}
-</script>
 <%- include('partials/footer') %>

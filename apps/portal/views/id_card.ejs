@@ -1,131 +1,40 @@
 <%- include('partials/header') %>
 <style>
-    body { background-color: #f4f7f6; }
-    .search-container { text-align: center; margin: 40px auto; max-width: 600px; padding: 0 15px; }
-    .profile-wrapper { max-width: 800px; margin: 0 auto 50px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); overflow: hidden; }
-    .profile-header { background: linear-gradient(135deg, #0056b3, #007bff); color: white; padding: 30px 40px; display: flex; align-items: center; gap: 30px; }
-    .profile-avatar { width: 110px; height: 110px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.4); object-fit: cover; background: #fff; }
-    .profile-info h2 { margin: 0 0 12px 0; font-size: 26px; letter-spacing: 1px; }
-    .info-tag { display: inline-block; padding: 5px 12px; background: rgba(255,255,255,0.15); border-radius: 6px; font-size: 14px; margin-right: 8px; margin-bottom: 8px; }
-    .tag-active { background: #28a745; font-weight: bold; }
-    .tag-inactive { background: #dc3545; font-weight: bold; }
-    .cert-body { padding: 30px 40px; }
-    .cert-section { margin-bottom: 30px; }
-    .cert-section h3 { border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; color: #333; font-size: 18px; margin-bottom: 20px; }
-    .cert-list { list-style: none; padding: 0; margin: 0; }
-    .cert-item { background: #fdfdfd; border: 1px solid #eee; border-left: 5px solid #0056b3; padding: 16px 20px; margin-bottom: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
-    .cert-name { font-weight: bold; color: #222; font-size: 16px; }
-    .cert-meta { font-size: 13px; color: #777; margin-top: 6px; }
-    .cert-btn { background: #eef2f5; color: #0056b3; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-size: 13px; font-weight: bold; cursor: pointer; border: none; }
-    .status-card { max-width: 560px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); padding: 36px 28px; text-align: center; }
-    .status-card h2 { margin: 0 0 12px; font-size: 22px; }
-    .status-lost { border-top: 6px solid #dc3545; }
-    .status-unbound { border-top: 6px solid #6c757d; }
-    .status-error { border-top: 6px solid #b45309; }
-    .card-no { font-size: 20px; font-weight: bold; letter-spacing: 1px; margin: 12px 0; }
-    .jump-btn { display: inline-block; margin-top: 8px; background: #0056b3; color: #fff; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: bold; }
-    @media (max-width: 600px) {
-        .profile-header { flex-direction: column; text-align: center; }
-        .cert-item { flex-direction: column; align-items: flex-start; gap: 15px; }
+    body { background-color: #d9e4f4; }
+    .status-card { max-width: 520px; margin: 40px auto 16px; background: #fff; border: 1px solid #b7c8e0; padding: 0; text-align: center; }
+    .status-card h2 { margin: 0; padding: 16px; background: #0b2d6b; color: #fff; font-size: 20px; }
+    .status-lost h2 { background: #8b1e1e; }
+    .status-body { padding: 28px 22px; }
+    .card-no { font-size: 22px; font-weight: 700; letter-spacing: 1px; margin: 0 0 12px; color: #0b2d6b; }
+    .found-wrap { max-width: 520px; margin: 0 auto 48px; padding: 8px 16px 0; text-align: center; }
+    .found-btn { display: inline-block; background: #fff; color: #0b2d6b; border: 2px solid #0b2d6b; padding: 12px 22px; text-decoration: none; font-weight: 700; }
+    .found-btn:hover { background: #0b2d6b; color: #fff; }
+    .found-hint { margin: 10px 0 0; font-size: 13px; color: #556; line-height: 1.5; }
+    @media (max-width: 640px) {
+        .status-card { margin: 16px 12px; }
+        .found-btn { display: block; }
     }
 </style>
 <main style="flex: 1;">
-    <% if (view === 'bound' && volunteer) { %>
-        <div class="search-container">
-            <p style="color:#666; margin:0 0 8px;">证件号 <strong><%= cardNo %></strong></p>
-            <% if (profileQuery) { %>
-            <a class="jump-btn" href="/search.php?query=<%= encodeURIComponent(profileQuery) %>">查看队员档案页</a>
+    <div class="status-card <%= view === 'lost' ? 'status-lost' : '' %>">
+        <h2>
+            <% if (view === 'lost') { %>证件已挂失
+            <% } else if (view === 'unbound') { %>证件未绑定
+            <% } else { %>证件查询
             <% } %>
-        </div>
-        <div class="profile-wrapper">
-            <div class="profile-header">
-                <img src="<%= avatarUrl %>" class="profile-avatar" alt="队员照片">
-                <div class="profile-info">
-                    <h2><%= volunteer.name %></h2>
-                    <div>
-                        <span class="info-tag">编号：<%= volunteer.badge_number %></span>
-                        <span class="info-tag">血型：<%= volunteer.blood_type || '未记录' %></span>
-                        <span class="info-tag">入队：<%= volunteer.join_date || '未知' %></span>
-                        <span class="info-tag <%= volunteer.status === 'active' ? 'tag-active' : 'tag-inactive' %>">
-                            <%= volunteer.status === 'active' ? '● 在职状态' : '○ 离队状态' %>
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <div class="cert-body">
-                <div class="cert-section">
-                    <h3>📋 队内认证与资质证明</h3>
-                    <ul class="cert-list">
-                        <% if (certsIn.length) { %>
-                            <% certsIn.forEach(function(c) { %>
-                            <li class="cert-item">
-                                <div>
-                                    <div class="cert-name"><%= c.cert_name %></div>
-                                    <div class="cert-meta">获得日期：<%= c.issue_date %></div>
-                                </div>
-                                <% if (c.image_url) { %>
-                                <button class="cert-btn" onclick="showImageModal('get_cert.php?file=<%= encodeURIComponent(c.image_url) %>')">查看凭证</button>
-                                <% } %>
-                            </li>
-                            <% }) %>
-                        <% } else { %>
-                            <li style="color: #999; font-size: 14px; padding: 10px 0;">暂无队内认证技能。</li>
-                        <% } %>
-                    </ul>
-                </div>
-                <div class="cert-section">
-                    <h3>🛡️ 通用执业资质</h3>
-                    <ul class="cert-list">
-                        <% if (certsOut.length) { %>
-                            <% certsOut.forEach(function(c) { %>
-                            <li class="cert-item" style="border-left-color: #28a745;">
-                                <div>
-                                    <div class="cert-name"><%= c.cert_name %></div>
-                                    <div class="cert-meta">
-                                        取得日期：<%= c.issue_date %> |
-                                        有效期至：<span style="color: #dc3545; font-weight: bold;"><%= c.expiry_date %></span>
-                                    </div>
-                                </div>
-                                <% if (c.image_url) { %>
-                                <button class="cert-btn" onclick="showImageModal('get_cert.php?file=<%= encodeURIComponent(c.image_url) %>')" style="color: #28a745;">查看凭证</button>
-                                <% } %>
-                            </li>
-                            <% }) %>
-                        <% } else { %>
-                            <li style="color: #999; font-size: 14px; padding: 10px 0;">暂无外部通用资质录入。</li>
-                        <% } %>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    <% } else { %>
-        <div class="status-card <%= view === 'lost' ? 'status-lost' : (view === 'unbound' ? 'status-unbound' : 'status-error') %>">
-            <h2>
-                <% if (view === 'lost') { %>证件已挂失
-                <% } else if (view === 'unbound') { %>证件未绑定
-                <% } else { %>证件查询
-                <% } %>
-            </h2>
+        </h2>
+        <div class="status-body">
             <% if (cardNo) { %>
             <div class="card-no"><%= cardNo %></div>
             <% } %>
-            <p style="color:#555; line-height:1.6; margin:0;"><%= message %></p>
+            <p style="color:#445; line-height:1.6; margin:0;"><%= message %></p>
+        </div>
+    </div>
+    <% if (typeof foundLink !== 'undefined' && foundLink) { %>
+        <div class="found-wrap">
+            <a class="found-btn" href="<%= foundLink.url %>" target="_blank" rel="noopener noreferrer"><%= foundLink.label %></a>
+            <p class="found-hint">若您捡到此证，请点此登记，便于归还。</p>
         </div>
     <% } %>
 </main>
-<div id="imageModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); align-items: center; justify-content: center;" onclick="closeImageModal()">
-    <span style="position: absolute; top: 20px; right: 30px; color: white; font-size: 40px; font-weight: bold; cursor: pointer;">&times;</span>
-    <img id="modalImage" style="max-width: 90%; max-height: 90%; border-radius: 8px; object-fit: contain;">
-</div>
-<script>
-function showImageModal(imageSrc) {
-    var modal = document.getElementById("imageModal");
-    var modalImg = document.getElementById("modalImage");
-    modalImg.src = imageSrc;
-    modal.style.display = "flex";
-}
-function closeImageModal() {
-    document.getElementById("imageModal").style.display = "none";
-}
-</script>
 <%- include('partials/footer') %>

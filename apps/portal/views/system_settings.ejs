@@ -163,6 +163,9 @@
                                     <option value="<%= opt.value %>"<%= String(val) === String(opt.value) ? ' selected' : '' %>><%= opt.label %></option>
                                     <% }) %>
                                 </select>
+                                <% if (fieldKey === 'id_card_found_enabled') { %>
+                                <p style="margin:6px 0 0;font-size:12px;color:#888;">打开后，扫码结果页会显示该按钮，给捡到证件的人跳转登记。</p>
+                                <% } %>
                             </div>
                             <% } else { %>
                             <div class="field">
@@ -180,6 +183,12 @@
                                 >
                                 <% if (fieldKey === 'id_card_scan_base') { %>
                                 <p style="margin:6px 0 0;font-size:12px;color:#666;">打印在证件上的扫码入口，所有证件共用。只含证件号，换绑队员二维码不变。不要填 127.0.0.1。例：http://192.168.1.18:12000</p>
+                                <% } %>
+                                <% if (fieldKey === 'id_card_found_label') { %>
+                                <p style="margin:6px 0 0;font-size:12px;color:#888;">显示在扫码结果页按钮上，可改成任意名称。</p>
+                                <% } %>
+                                <% if (fieldKey === 'id_card_found_url') { %>
+                                <p style="margin:6px 0 0;font-size:12px;color:#888;">按钮点击后打开的地址，须以 http:// 或 https:// 开头。链接里写 <code>{no}</code> 会替换成当前证件号。</p>
                                 <% } %>
                             </div>
                             <% } %>
