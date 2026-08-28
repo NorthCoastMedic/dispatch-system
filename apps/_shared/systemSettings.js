@@ -102,8 +102,8 @@ const DEFAULT_NAV_ITEMS = [
     {
         id: 'admin_edit',
         icon: '⚙️',
-        title: '队员档案与资质管理',
-        desc: '添加新队员、修改基础档案、颁发及注销内外资质证书。',
+        title: '证件人员综合管理',
+        desc: '队员档案、资质证书与实体证件卡（绑定/未绑定/挂失与扫码）。',
         href: '/admin_edit.php',
         target: '_self',
         admin_only: true,
@@ -160,7 +160,16 @@ function parseNavItems(raw) {
     if (!list || !list.length) {
         return DEFAULT_NAV_ITEMS.map((item, i) => normalizeNavItem(item, i));
     }
-    return list.map((item, i) => normalizeNavItem(item, i));
+    return list.map((item, i) => {
+        const n = normalizeNavItem(item, i);
+        if (n.id === 'admin_edit' && n.title === '队员档案与资质管理') {
+            n.title = '证件人员综合管理';
+            if (n.desc === '添加新队员、修改基础档案、颁发及注销内外资质证书。') {
+                n.desc = '队员档案、资质证书与实体证件卡（绑定/未绑定/挂失与扫码）。';
+            }
+        }
+        return n;
+    });
 }
 
 function stringifyNavItems(raw) {
@@ -230,6 +239,13 @@ const CATEGORY_DEFS = {
                 label: '页脚标语（与版权分行）',
                 type: 'text',
                 default: ''
+            },
+            id_card_scan_base: {
+                label: '证件二维码根地址（本系统）',
+                type: 'url',
+                optional: true,
+                default: '',
+                placeholder: 'http://192.168.1.18:12000'
             }
         }
     },
@@ -546,6 +562,17 @@ function validateSettings(settings) {
         }
     } else {
         errors.push('公开网站网址不能为空');
+    }
+    const cardBase = String((settings.branding && settings.branding.id_card_scan_base) || '').trim();
+    if (cardBase) {
+        try {
+            const u = new URL(cardBase);
+            if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+                errors.push('证件二维码根地址必须以 http:// 或 https:// 开头');
+            }
+        } catch {
+            errors.push('证件二维码根地址格式无效');
+        }
     }
     const b = settings.branding || {};
     if (!b.internal_platform_name) errors.push('内部平台名称不能为空');

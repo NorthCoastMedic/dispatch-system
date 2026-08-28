@@ -12,6 +12,8 @@ const rateLimit = require('../_shared/rateLimit');
 const { getBranding, getBrandingAsync, loadSettings, getCategoryDefs, ensureReady, getAgencyListFromSettings, getNavItemsFromSettings, DEFAULT_NAV_ITEMS } = require('../_shared/systemSettings');
 const { writeProfileLog } = require('./lib/orgLog');
 const { pool } = require('./lib/db');
+const idCards = require('./lib/idCards');
+const qrLocal = require('./lib/qrLocal');
 
 function actorFromReq(req) {
     const user = ensureUnifiedSession(req);
@@ -84,6 +86,21 @@ function flashMsg(reqQuery) {
     if (reqQuery.msg === 'vol_deleted') return '✔ 队员档案及所有关联数据、证书图片已全部连带销毁！';
     if (reqQuery.msg === 'cert_updated') return '✔ 资质信息（及图片）修改成功！';
     if (reqQuery.msg === 'base_updated') return '✔ 基础信息已保存！';
+    if (reqQuery.msg === 'id_card_added') return '✔ 证件已添加。';
+    if (reqQuery.msg === 'id_card_saved') return '✔ 证件已保存（绑定/备注已更新）。';
+    if (reqQuery.msg === 'id_card_lost') return '✔ 已挂失。扫码将只显示证件号与挂失提示。';
+    if (reqQuery.msg === 'id_card_restored') return '✔ 已解除挂失。';
+    if (reqQuery.msg === 'id_card_deleted') return '✔ 证件已删除。';
+    return '';
+}
+
+function cardScanPayload(cardNo, branding) {
+    const base = branding && branding.id_card_scan_base;
+    return qrLocal.scanTarget(cardNo, base);
+}
+
+function exposeCardErr(err) {
+    if (err && err.expose) return err.message;
     return '';
 }
 
@@ -309,6 +326,88 @@ app.get('/search.php', async (req, res) => {
     });
 });
 
+// 实体证件扫码
+app.get('/id_card.php', async (req, res) => {
+    const no = String(req.query.no || '').trim();
+    const lim = rateLimit.searchGet.hit('ip:' + rateLimit.clientIp(req) + ':card');
+    if (!lim.ok) {
+        return res.status(429).render('id_card', {
+            user: currentUser(req),
+            view: 'error',
+            cardNo: no,
+            message: '查询过于频繁，请稍后再试。',
+            volunteer: null,
+            certsIn: [],
+            certsOut: [],
+            avatarUrl: '',
+            profileQuery: ''
+        });
+    }
+
+    let view = 'missing';
+    let cardNo = no;
+    let message = no ? '未找到该证件。' : '请扫描证件上的二维码。';
+    let volunteer = null;
+    let certsIn = [];
+    let certsOut = [];
+    let avatarUrl = '';
+    let profileQuery = '';
+
+    if (no) {
+        const row = await idCards.getByCardNo(no);
+        if (row) {
+            cardNo = row.card_no;
+            if (row.status === 'lost') {
+                view = 'lost';
+                message = '该证件已挂失。如拾获请交还组织，不要使用。';
+            } else if (row.status === 'unbound' || !row.vol_id) {
+                view = 'unbound';
+                message = '该证件尚未绑定队员。';
+            } else {
+                const jump = String(row.badge_number || row.name || '').trim();
+                if (jump) {
+                    return res.redirect('/search.php?query=' + encodeURIComponent(jump));
+                }
+                view = 'unbound';
+                message = '该证件尚未绑定队员。';
+            }
+        }
+    }
+
+    res.render('id_card', {
+        user: currentUser(req),
+        view,
+        cardNo,
+        message,
+        volunteer,
+        certsIn,
+        certsOut,
+        avatarUrl,
+        profileQuery
+    });
+});
+
+// 证件二维码图（本机生成，不走外网脚本）
+app.get('/id_card_qr.php', requireAdmin, async (req, res) => {
+    const no = String(req.query.no || '').trim();
+    if (!no || no.length > 64 || /[<>"'&\s]/.test(no)) {
+        return res.status(400).end();
+    }
+    const lim = rateLimit.searchGet.hit('ip:' + rateLimit.clientIp(req) + ':qr');
+    if (!lim.ok) return res.status(429).end();
+    try {
+        const branding = await getBrandingAsync();
+        const url = cardScanPayload(no, branding);
+        const svg = qrLocal.toSvg(url, { width: 360 });
+        res.setHeader('Cache-Control', 'private, max-age=120');
+        res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+        res.send(svg);
+    } catch (err) {
+        console.error('[id_card_qr]', err && err.message);
+        res.status(500).end();
+    }
+});
+
 // 证书图片
 app.get('/get_cert.php', (req, res) => {
     const lim = rateLimit.certGet.hit('ip:' + rateLimit.clientIp(req));
@@ -380,6 +479,7 @@ function optionalImageUpload(req, res, next) {
 app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) => {
     const csrf = ensureCsrf(req);
     let msg = flashMsg(req.query);
+    let listTab = String(req.query.tab || '') === 'cards' ? 'cards' : 'people';
 
     try {
         if (req.method === 'POST') {
@@ -387,6 +487,15 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 return res.status(403).send('❌ 安全警告：CSRF 验证失败，请求非法。');
             }
             const body = req.body || {};
+            if (
+                body.add_id_card !== undefined
+                || body.save_id_card !== undefined
+                || body.lose_id_card !== undefined
+                || body.restore_id_card !== undefined
+                || body.delete_id_card !== undefined
+            ) {
+                listTab = 'cards';
+            }
 
             if (body.add_volunteer !== undefined) {
                 await query(
@@ -394,6 +503,108 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                     [body.new_name, body.new_badge, body.new_join_date]
                 );
                 msg = '新队员档案初始化成功！';
+            }
+
+            if (body.add_id_card !== undefined) {
+                try {
+                    const newId = await idCards.createCard({
+                        cardNo: body.new_card_no,
+                        note: body.new_card_note,
+                        volunteerId: body.new_card_vid
+                    });
+                    writeProfileLog(pool, {
+                        ...actorFromReq(req),
+                        action: 'add_id_card',
+                        volunteerId: parseInt(body.new_card_vid, 10) || 0,
+                        entityType: 'id_card',
+                        entityId: newId,
+                        summary: `新增证件：${String(body.new_card_no || '').trim()}`,
+                        after: {
+                            card_no: String(body.new_card_no || '').trim(),
+                            note: String(body.new_card_note || '').trim(),
+                            volunteer_id: body.new_card_vid || null
+                        }
+                    });
+                    return res.redirect('/admin_edit.php?tab=cards&msg=id_card_added');
+                } catch (err) {
+                    msg = '❌ ' + (exposeCardErr(err) || '添加证件失败。');
+                }
+            }
+
+            if (body.save_id_card !== undefined) {
+                try {
+                    await idCards.saveCard({
+                        id: body.card_id,
+                        note: body.card_note,
+                        volunteerId: body.card_vid
+                    });
+                    writeProfileLog(pool, {
+                        ...actorFromReq(req),
+                        action: 'save_id_card',
+                        volunteerId: parseInt(body.card_vid, 10) || 0,
+                        entityType: 'id_card',
+                        entityId: parseInt(body.card_id, 10) || null,
+                        summary: `保存证件绑定/备注`,
+                        after: {
+                            note: String(body.card_note || '').trim(),
+                            volunteer_id: body.card_vid || null
+                        }
+                    });
+                    return res.redirect('/admin_edit.php?tab=cards&msg=id_card_saved');
+                } catch (err) {
+                    msg = '❌ ' + (exposeCardErr(err) || '保存证件失败。');
+                }
+            }
+
+            if (body.lose_id_card !== undefined) {
+                try {
+                    const card = await idCards.loseCard(body.card_id);
+                    writeProfileLog(pool, {
+                        ...actorFromReq(req),
+                        action: 'lose_id_card',
+                        volunteerId: card.volunteer_id || 0,
+                        entityType: 'id_card',
+                        entityId: card.id,
+                        summary: `挂失证件：${card.card_no}`
+                    });
+                    return res.redirect('/admin_edit.php?tab=cards&msg=id_card_lost');
+                } catch (err) {
+                    msg = '❌ ' + (exposeCardErr(err) || '挂失失败。');
+                }
+            }
+
+            if (body.restore_id_card !== undefined) {
+                try {
+                    const card = await idCards.restoreCard(body.card_id);
+                    writeProfileLog(pool, {
+                        ...actorFromReq(req),
+                        action: 'restore_id_card',
+                        volunteerId: card.volunteer_id || 0,
+                        entityType: 'id_card',
+                        entityId: card.id,
+                        summary: `解除挂失：${card.card_no}`
+                    });
+                    return res.redirect('/admin_edit.php?tab=cards&msg=id_card_restored');
+                } catch (err) {
+                    msg = '❌ ' + (exposeCardErr(err) || '解除挂失失败。');
+                }
+            }
+
+            if (body.delete_id_card !== undefined) {
+                try {
+                    const card = await idCards.deleteCard(body.card_id);
+                    writeProfileLog(pool, {
+                        ...actorFromReq(req),
+                        action: 'delete_id_card',
+                        volunteerId: card.volunteer_id || 0,
+                        entityType: 'id_card',
+                        entityId: card.id,
+                        summary: `删除证件：${card.card_no}`
+                    });
+                    return res.redirect('/admin_edit.php?tab=cards&msg=id_card_deleted');
+                } catch (err) {
+                    msg = '❌ ' + (exposeCardErr(err) || '删除证件失败。');
+                }
             }
 
             // 兼容：按钮名 / 隐藏域 / 带 phone 的基础信息表单
@@ -406,6 +617,11 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 && body.create_account === undefined
                 && body.update_account === undefined
                 && body.update_cert_info === undefined
+                && body.add_id_card === undefined
+                && body.save_id_card === undefined
+                && body.lose_id_card === undefined
+                && body.restore_id_card === undefined
+                && body.delete_id_card === undefined
             );
 
             if (isUpdateBase) {
@@ -633,9 +849,10 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                     await query(`DELETE FROM ${tbl} WHERE volunteer_id=?`, [vid]);
                 }
                 await query('DELETE FROM users WHERE volunteer_id=?', [vid]);
+                await idCards.unbindCardsOfDeletedVolunteer(vid);
                 await query('DELETE FROM volunteers WHERE id=?', [vid]);
                 if (volRows[0]) deleteAvatarFile(volRows[0].avatar_url);
-                return res.redirect('/admin_edit.php?msg=vol_deleted');
+                return res.redirect('/admin_edit.php?tab=people&msg=vol_deleted');
             }
         }
 
@@ -682,6 +899,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 certs,
                 agencies: await agenciesForPage(),
                 volunteers: [],
+                idCards: [],
+                cardPublicBase: '',
                 cert: null,
                 accountUser: null,
                 vid,
@@ -713,6 +932,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 certs: [],
                 agencies: [],
                 volunteers: [],
+                idCards: [],
+                cardPublicBase: '',
                 accountUser: null
             });
         }
@@ -732,6 +953,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 certs: [],
                 agencies: [],
                 volunteers: [],
+                idCards: [],
+                cardPublicBase: '',
                 cert: null,
                 vid,
                 type: ''
@@ -739,12 +962,38 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
         }
 
         const volunteers = await query('SELECT * FROM volunteers ORDER BY id DESC');
+        let cards = [];
+        try {
+            cards = await idCards.listCards();
+        } catch (err) {
+            console.error('[id_cards]', err.message);
+            if (!msg) msg = '❌ 无法读取证件表，请确认 org.id_cards 已创建。';
+        }
+        let scanBase = '';
+        try {
+            const branding = await getBrandingAsync();
+            scanBase = branding && branding.id_card_scan_base;
+        } catch (_) { /* ignore */ }
+        cards = (cards || []).map((c) => {
+            const scanUrl = cardScanPayload(c.card_no, { id_card_scan_base: scanBase });
+            let qrDataUri = '';
+            try {
+                qrDataUri = qrLocal.toDataUri(scanUrl, { width: 240 });
+            } catch (err) {
+                console.error('[id_card_qr]', err && err.message);
+            }
+            return { ...c, scanUrl, qrDataUri };
+        });
         return res.render('admin_edit', {
             user: currentUser(req),
             csrf,
             msg,
             mode: 'list',
             volunteers,
+            idCards: cards,
+            cardPublicBase: scanBase || '',
+            cardScanBase: scanBase || '',
+            listTab,
             agencies: await agenciesForPage(),
             vol: null,
             certs: [],

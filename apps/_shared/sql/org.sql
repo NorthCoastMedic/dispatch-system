@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS volunteers (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(128) NOT NULL,
   badge_number VARCHAR(64) NULL,
+  id_card_no VARCHAR(64) NULL COMMENT '当前实体证件号；未绑定为 NULL',
   blood_type VARCHAR(16) NULL,
   phone VARCHAR(20) NULL,
   agency VARCHAR(64) NOT NULL DEFAULT '',
@@ -29,8 +30,24 @@ CREATE TABLE IF NOT EXISTS volunteers (
   join_date DATE NULL,
   PRIMARY KEY (id),
   KEY idx_vol_badge (badge_number),
+  KEY idx_vol_id_card (id_card_no),
   KEY idx_vol_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS id_cards (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  card_no VARCHAR(64) NOT NULL COMMENT '证件号，全局唯一',
+  note VARCHAR(255) NOT NULL DEFAULT '' COMMENT '卡片备注',
+  volunteer_id INT UNSIGNED NULL COMMENT '绑定队员；未绑定为 NULL；挂失仍保留',
+  status VARCHAR(16) NOT NULL DEFAULT 'unbound' COMMENT 'unbound未绑定 / bound已绑定 / lost挂失',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_id_cards_no (card_no),
+  UNIQUE KEY uk_id_cards_vol (volunteer_id),
+  KEY idx_id_cards_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='实体证件卡（扫码展示资质/未绑定/挂失）';
 
 CREATE TABLE IF NOT EXISTS certs_internal (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
