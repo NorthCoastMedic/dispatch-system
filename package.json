@@ -10,9 +10,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.8",
     "@xmldom/xmldom": "^0.9.11",
-    "ag-psd": "^31.0.2",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",

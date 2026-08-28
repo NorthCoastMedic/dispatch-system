@@ -329,8 +329,8 @@
 
         <div id="pane-cards" class="admin-pane <%= tab === 'cards' ? 'active' : '' %>">
         <div id="id-cards" class="card" style="border-top:4px solid #0056b3;">
-            <h3 class="card-header">🪪 实体证件</h3>
-            <p style="color:#666; font-size:13px; margin:0 0 16px;">二维码只含证件号，换绑队员不会变。扫描后进入系统：已绑定则跳到该队员档案；未绑定/挂失只显示提示。请先在「系统设置 → 系统信息」填写证件扫码根地址（手机能访问的地址，不要用 127.0.0.1）。<% if (typeof cardScanBase !== 'undefined' && cardScanBase) { %> 当前根地址：<code><%= cardScanBase %></code><% } else { %> <strong style="color:#b45309;">尚未填写根地址，手机扫码可能无法打开页面。</strong><% } %></p>
+            <h3 class="card-header">证件管理</h3>
+            <p style="color:#666; font-size:13px; margin:0 0 16px;">请先在「系统设置 → 系统信息」填写证件扫码根地址扫描设备用于跳转的网址。<% if (typeof cardScanBase !== 'undefined' && cardScanBase) { %> 当前根地址：<code><%= cardScanBase %></code><% } else { %> <strong style="color:#b45309;">尚未填写根地址，扫描设备无法打开页面。</strong><% } %></p>
             <form method="POST" class="quick-add-form" style="margin-bottom:20px;">
                 <input type="hidden" name="csrf_token" value="<%= csrf %>">
                 <input type="text" name="new_card_no" placeholder="证件号" required maxlength="64" class="input-field">
@@ -453,7 +453,7 @@
                 var url = btn.getAttribute('data-url') || '';
                 var no = btn.getAttribute('data-no') || '';
                 var bind = btn.getAttribute('data-bind') || '';
-                document.getElementById('qrMeta').textContent = '证件号 ' + no + '（换人码不变） · 当前绑定：' + bind;
+                document.getElementById('qrMeta').textContent = '证件号 ' + no + ' · 当前绑定：' + bind;
                 document.getElementById('qrUrl').textContent = url;
                 var img = document.getElementById('qrImg');
                 var dataImg = btn.getAttribute('data-img') || '';
