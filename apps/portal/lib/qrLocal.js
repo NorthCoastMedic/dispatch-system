@@ -8,7 +8,10 @@ const QRCode = require('./vendor/qrcode/lib/core/qrcode');
 const SvgTag = require('./vendor/qrcode/lib/renderer/svg-tag');
 
 function normalizeScanBase(raw) {
-    return String(raw == null ? '' : raw).trim().replace(/\/+$/, '');
+    let s = String(raw == null ? '' : raw).trim().replace(/\/+$/, '');
+    if (!s) return '';
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = 'http://' + s;
+    return s.replace(/\/+$/, '');
 }
 
 /** 只由证件号决定，与绑定谁无关，也不随当前访问 IP 变化 */

@@ -182,7 +182,7 @@
                                     <% if (!field.optional) { %>required<% } %>
                                 >
                                 <% if (fieldKey === 'id_card_scan_base') { %>
-                                <p style="margin:6px 0 0;font-size:12px;color:#666;">打印在证件上的扫码入口，所有证件共用。只含证件号，换绑队员二维码不变。不要填 127.0.0.1。例：http://192.168.1.18:12000</p>
+                                <p style="margin:6px 0 0;font-size:12px;color:#666;">打印在证件上的扫码入口，所有证件共用。只含证件号，换绑队员二维码不变。不要填 127.0.0.1。须以 <code>http://</code> 或 <code>https://</code> 开头，例如 <code>http://192.168.1.18:12000</code>。</p>
                                 <% } %>
                                 <% if (fieldKey === 'id_card_found_label') { %>
                                 <p style="margin:6px 0 0;font-size:12px;color:#888;">显示在扫码结果页按钮上，可改成任意名称。</p>
