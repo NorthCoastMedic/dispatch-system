@@ -1,10 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
+const mediaToken = require('../../_shared/mediaToken');
 
 const CERT_DIR = path.join(__dirname, '..', 'certificates');
 const AVATAR_DIR = path.join(__dirname, '..', 'avatars');
-const FONT_PATH = path.join(__dirname, '..', 'assets', 'fonts', 'simhei.ttf');
+const FONT_PATH = path.join(__dirname, '..', 'assets', 'fonts', 'NotoSansSC.ttf');
+const FONT_NAME = 'Noto Sans SC';
 const WATERMARK_TEXT = '仅限资质公开平台使用';
 const DEFAULT_AVATAR_DATA_URI = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDJDMi4yNiAyIDIgMTIuMjYgMiAxMnMxMC4yNiAxMCAxMCAxMCAxMCAxMCAxMCAtMTAuMjYgMTAtMTBTMjEuNzQgMiAxMiAyem0wIDE0Yy0yLjY3IDAtOCAxLjM0LTggNHYxYzAgMS4xIDAuOSAyIDIgMmgxMmMxLjEgMCAyLTAuOSAyLTJ2LTFjMC0yLjY2LTUuMzMtNC04LTR6Ii8+PC9zdmc+';
 
@@ -73,7 +75,7 @@ function publicAvatarUrl(stored) {
     const v = String(stored || '').trim();
     if (!v) return DEFAULT_AVATAR_DATA_URI;
     if (isRemoteAvatarUrl(v)) return v;
-    return '/get_avatar.php?file=' + encodeURIComponent(path.basename(v));
+    return mediaToken.avatarUrl(path.basename(v));
 }
 
 /**
@@ -99,9 +101,9 @@ async function processAndSaveCertificate(file, meta) {
     const height = info.height || 800;
 
     const fontCss = fs.existsSync(FONT_PATH)
-        ? `@font-face { font-family: 'SimHei'; src: url('file://${FONT_PATH.replace(/\\/g, '/')}'); }`
+        ? `@font-face { font-family: '${FONT_NAME}'; src: url('file://${FONT_PATH.replace(/\\/g, '/')}'); }`
         : '';
-    const fontFamily = fs.existsSync(FONT_PATH) ? 'SimHei' : 'sans-serif';
+    const fontFamily = fs.existsSync(FONT_PATH) ? FONT_NAME : 'sans-serif';
     const angle = -Math.atan2(height, width) * (180 / Math.PI);
     const fontSize = Math.max(26, Math.floor(Math.min(width, height) / 16));
     const step = Math.max(fontSize * 3.2, Math.min(width, height) / 3.5);

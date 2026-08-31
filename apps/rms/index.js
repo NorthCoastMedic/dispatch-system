@@ -7,7 +7,10 @@ const { loadLocalEnv, envGet } = require('../_shared/env');
 const { ensureUnifiedSession, setUnifiedSession, isAdminUser } = require('../_shared/session');
 const authTokens = require('../_shared/authTokens');
 const rateLimit = require('../_shared/rateLimit');
+const authSecurity = require('../_shared/authSecurity');
+const totp = require('../_shared/totp');
 const { loadSettings } = require('../_shared/systemSettings');
+const mediaToken = require('../_shared/mediaToken');
 const {
     notifySafe,
     lookupPhoneByUserId,
@@ -32,6 +35,7 @@ const {
     newBatchId,
     actorFromSocket,
     clientIp,
+    deviceFromReq,
     STATUS_LABEL
 } = require('./lib/dispatchLog');
 const { findDuplicateEvents, formatDuplicateHint, DEFAULT_WITHIN_MINUTES } = require('./lib/duplicateEvent');
@@ -401,6 +405,7 @@ function createApp(options = {}) {
             );
             writeEventLog(db, {
                 action: 'public_report',
+                ...deviceFromReq(req),
                 actorUsername: reportType,
                 eventId,
                 eventTitle: title,
@@ -429,31 +434,59 @@ function createApp(options = {}) {
     app.use(express.static(path.join(__dirname, 'public')));
 
     app.post('/api/login', async (req, res) => {
-        const { username, password } = req.body;
-        const gate = rateLimit.loginGate(req, username);
-        if (!gate.ok) {
-            return res.status(429).json({ success: false, message: '尝试次数过多，请稍后再试' });
+        const { username, password, totp: totpCode } = req.body || {};
+        const started = await authSecurity.beginLogin(req, username, 'rms');
+        if (!started.ok) {
+            return res.status(started.status || 429).json({ success: false, message: started.error });
         }
         try {
-            const [users] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
-            if (users.length === 0) {
-                rateLimit.loginFail(req, username);
-                return res.status(401).json({ success: false, message: '账号或密码错误' });
+            const pending = authSecurity.getPending2fa(req);
+            if (pending && totpCode) {
+                const user = await authSecurity.loadUserById(pending.id);
+                if (!user || Number(user.totp_enabled) !== 1 || !totp.verifyTotp(user.totp_secret, totpCode)) {
+                    const fail = await authSecurity.failLogin(req, pending.username, 'bad_totp', 'rms', pending.id);
+                    return res.status(401).json({
+                        success: false,
+                        need_2fa: true,
+                        message: fail.locked ? fail.error : '动态验证码不正确'
+                    });
+                }
+                authSecurity.clearPending2fa(req);
+                await authSecurity.succeedLogin(req, user, 'rms');
+                return req.session.regenerate((err) => {
+                    if (err) return res.status(500).json({ success: false, message: '会话创建失败' });
+                    const sessionUser = {
+                        id: user.id,
+                        username: user.username,
+                        role: user.role,
+                        volunteer_id: user.volunteer_id
+                    };
+                    setUnifiedSession(req, sessionUser);
+                    const auth = authTokens.issueForUser(req, res, sessionUser, { includeTokens: true });
+                    return res.json({ success: true, user: req.session.user, ...auth });
+                });
             }
 
-            const user = users[0];
+            const user = await authSecurity.loadUserByUsername(username);
+            if (!user) {
+                const fail = await authSecurity.failLogin(req, username, 'no_user', 'rms');
+                return res.status(401).json({ success: false, message: fail.locked ? fail.error : '账号或密码错误' });
+            }
             const hash = String(user.password_hash || '');
             if (!hash.startsWith('$2a$') && !hash.startsWith('$2b$') && !hash.startsWith('$2y$')) {
-                rateLimit.loginFail(req, username);
+                await authSecurity.failLogin(req, username, 'bad_hash', 'rms', user.id);
                 return res.status(401).json({ success: false, message: '账号密码需使用 bcrypt，请联系管理员重置' });
             }
             const passwordMatch = await bcrypt.compare(password, hash.replace(/^\$2y\$/, '$2b$'));
             if (!passwordMatch) {
-                rateLimit.loginFail(req, username);
-                return res.status(401).json({ success: false, message: '账号或密码错误' });
+                const fail = await authSecurity.failLogin(req, username, 'bad_password', 'rms', user.id);
+                return res.status(401).json({ success: false, message: fail.locked ? fail.error : '账号或密码错误' });
             }
-
-            await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+            if (Number(user.totp_enabled) === 1) {
+                authSecurity.setPending2fa(req, user);
+                return res.json({ success: false, need_2fa: true, message: '请输入动态验证码' });
+            }
+            await authSecurity.succeedLogin(req, user, 'rms');
             req.session.regenerate((err) => {
                 if (err) return res.status(500).json({ success: false, message: '会话创建失败' });
                 const sessionUser = {
@@ -464,7 +497,6 @@ function createApp(options = {}) {
                 };
                 setUnifiedSession(req, sessionUser);
                 const auth = authTokens.issueForUser(req, res, sessionUser, { includeTokens: true });
-                rateLimit.loginOk(req, username);
                 return res.json({ success: true, user: req.session.user, ...auth });
             });
         } catch (err) {
@@ -478,10 +510,15 @@ function createApp(options = {}) {
         req.session.destroy(() => res.json({ success: true }));
     });
 
-    app.get('/api/me', (req, res) => {
+    app.get('/api/me', async (req, res) => {
         const user = ensureUnifiedSession(req);
         if (!user) return res.status(401).json({ success: false });
-        res.json({ success: true, user, auth: authTokens.tokenMeta(req.auth, req.authRefresh) });
+        res.json({
+            success: true,
+            user,
+            auth: authTokens.tokenMeta(req.auth, req.authRefresh),
+            totp_enabled: await authSecurity.userHas2fa(user.id)
+        });
     });
 
     /** SLA 预告 / 超时写入事件时间线（rms_event_logs） */
@@ -529,6 +566,7 @@ function createApp(options = {}) {
 
             await writeEventLog(db, {
                 action,
+                ...deviceFromReq(req),
                 actorUserId: user && user.id,
                 actorUsername: (user && user.username) || '系统',
                 eventId,
@@ -861,7 +899,8 @@ function createApp(options = {}) {
                     cert_name: c.cert_name,
                     issue_date: c.issue_date,
                     expiry_date: null,
-                    image_url: c.image_url || null
+                    image_url: c.image_url || null,
+                    image_src: mediaToken.certUrl(c.image_url)
                 })),
                 ...external.map((c) => ({
                     id: c.id,
@@ -870,7 +909,8 @@ function createApp(options = {}) {
                     cert_name: c.cert_name,
                     issue_date: c.issue_date,
                     expiry_date: c.expiry_date,
-                    image_url: c.image_url || null
+                    image_url: c.image_url || null,
+                    image_src: mediaToken.certUrl(c.image_url)
                 }))
             ];
 

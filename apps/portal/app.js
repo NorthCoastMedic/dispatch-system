@@ -9,20 +9,25 @@ const { requireLogin, requireAdmin } = require('./middleware/auth');
 const { setUnifiedSession, ensureUnifiedSession } = require('../_shared/session');
 const authTokens = require('../_shared/authTokens');
 const rateLimit = require('../_shared/rateLimit');
+const authSecurity = require('../_shared/authSecurity');
+const totp = require('../_shared/totp');
 const { getBranding, getBrandingAsync, loadSettings, getCategoryDefs, ensureReady, getAgencyListFromSettings, getNavItemsFromSettings, DEFAULT_NAV_ITEMS } = require('../_shared/systemSettings');
 const { writeProfileLog } = require('./lib/orgLog');
 const { pool } = require('./lib/db');
 const idCards = require('./lib/idCards');
 const qrLocal = require('./lib/qrLocal');
+const mediaToken = require('../_shared/mediaToken');
+const deviceInfo = require('../_shared/deviceInfo');
 
 function actorFromReq(req) {
     const user = ensureUnifiedSession(req);
-    const xf = req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip']);
-    const ip = xf ? String(xf).split(',')[0].trim() : (req.socket && req.socket.remoteAddress) || null;
+    const fp = deviceInfo.fromReq(req, true);
     return {
         actorUserId: user && user.id != null ? user.id : null,
         actorUsername: user && user.username ? user.username : null,
-        ip
+        ip: fp.ip,
+        device: fp.device,
+        userAgent: fp.userAgent
     };
 }
 
@@ -91,6 +96,10 @@ function flashMsg(reqQuery) {
     if (reqQuery.msg === 'id_card_lost') return '✔ 已挂失。扫码将只显示证件号与挂失提示。';
     if (reqQuery.msg === 'id_card_restored') return '✔ 已解除挂失。';
     if (reqQuery.msg === 'id_card_deleted') return '✔ 证件已删除。';
+    if (reqQuery.msg === 'reauth_fail') return '❌ 二次授权失败，操作未执行。';
+    if (reqQuery.msg === '2fa_on') return '✔ 双因素认证已开启。';
+    if (reqQuery.msg === '2fa_off') return '✔ 双因素认证已关闭。';
+    if (reqQuery.msg === '2fa_bad') return '❌ 动态验证码不正确，未能开启 2FA。';
     return '';
 }
 
@@ -115,24 +124,20 @@ async function loadVolunteerCerts(volunteerId) {
     const certsIn = (await query(
         'SELECT * FROM certs_internal WHERE volunteer_id = ? ORDER BY issue_date DESC',
         [volunteerId]
-    )).map((c) => ({ ...c, issue_date: formatDateInput(c.issue_date) }));
+    )).map((c) => ({ ...c, issue_date: formatDateInput(c.issue_date), cert_src: mediaToken.certUrl(c.image_url) }));
     const certsOut = (await query(
         'SELECT * FROM certs_external WHERE volunteer_id = ? ORDER BY expiry_date DESC',
         [volunteerId]
     )).map((c) => ({
         ...c,
         issue_date: formatDateInput(c.issue_date),
-        expiry_date: formatDateInput(c.expiry_date)
+        expiry_date: formatDateInput(c.expiry_date),
+        cert_src: mediaToken.certUrl(c.image_url)
     }));
     return { certsIn, certsOut };
 }
 
-async function lookupVolunteerProfile(q) {
-    const rows = await query(
-        'SELECT id, name, badge_number, blood_type, join_date, status, avatar_url, agency FROM volunteers WHERE name LIKE ? OR badge_number = ? LIMIT 1',
-        [`%${q}%`, q]
-    );
-    const row = rows[0] || null;
+async function profileFromVolunteerRow(row) {
     if (!row) {
         return { volunteer: null, certsIn: [], certsOut: [], avatarUrl: '' };
     }
@@ -144,6 +149,28 @@ async function lookupVolunteerProfile(q) {
         certsOut: certs.certsOut,
         avatarUrl: publicAvatarUrl(volunteer.avatar_url)
     };
+}
+
+async function lookupVolunteerProfile(q) {
+    const rows = await query(
+        'SELECT id, name, badge_number, blood_type, join_date, status, avatar_url, agency FROM volunteers WHERE name LIKE ? OR badge_number = ? LIMIT 1',
+        [`%${q}%`, q]
+    );
+    return profileFromVolunteerRow(rows[0] || null);
+}
+
+async function lookupVolunteerById(vid) {
+    const id = Number(vid);
+    if (!id) return profileFromVolunteerRow(null);
+    const rows = await query(
+        'SELECT id, name, badge_number, blood_type, join_date, status, avatar_url, agency FROM volunteers WHERE id = ? LIMIT 1',
+        [id]
+    );
+    return profileFromVolunteerRow(rows[0] || null);
+}
+
+function isPublicSearchEnabled(settings) {
+    return String((settings && settings.branding && settings.branding.public_search_enabled) || '1') !== '0';
 }
 
 function exposeCardErr(err) {
@@ -168,43 +195,112 @@ app.get('/login.php', (req, res) => {
     if (ensureUnifiedSession(req)) {
         return res.redirect(safeRedirectTarget(req.query.redirect));
     }
+    const pending = authSecurity.getPending2fa(req);
+    if (pending) {
+        return res.render('login_2fa', {
+            user: null,
+            error: '',
+            redirect: req.query.redirect || '',
+            username: pending.username
+        });
+    }
     res.render('login', { user: null, error: '', redirect: req.query.redirect || '' });
 });
+
+function completePortalLogin(req, res, user, redirect) {
+    req.session.regenerate((err) => {
+        if (err) return res.status(500).send('会话创建失败');
+        const sessionUser = {
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            volunteer_id: user.volunteer_id || null
+        };
+        setUnifiedSession(req, sessionUser);
+        authTokens.issueForUser(req, res, sessionUser);
+        res.redirect(redirect || '/dashboard.php');
+    });
+}
 
 app.post('/login.php', async (req, res) => {
     const username = (req.body.username || '').trim();
     const password = req.body.password || '';
     const redirect = safeRedirectTarget(req.body.redirect || req.query.redirect);
-    const gate = rateLimit.loginGate(req, username);
-    if (!gate.ok) {
-        return res.status(429).render('login', {
-            user: null,
-            error: '尝试次数过多，请 ' + gate.retryAfter + ' 秒后再试。',
-            redirect
-        });
-    }
     try {
-        const rows = await query('SELECT id, password_hash, role, volunteer_id FROM users WHERE username = ?', [username]);
-        if (!rows.length || !(await verifyPassword(password, rows[0].password_hash))) {
-            rateLimit.loginFail(req, username);
-            return res.render('login', { user: null, error: '用户名或密码不正确。', redirect });
+        const started = await authSecurity.beginLogin(req, username, 'portal');
+        if (!started.ok) {
+            return res.status(started.status || 429).render('login', {
+                user: null,
+                error: started.error,
+                redirect
+            });
         }
-        req.session.regenerate((err) => {
-            if (err) return res.status(500).send('会话创建失败');
-            const user = {
-                id: rows[0].id,
+        const user = await authSecurity.loadUserByUsername(username);
+        if (!user || !(await verifyPassword(password, user.password_hash))) {
+            const fail = await authSecurity.failLogin(
+                req,
                 username,
-                role: rows[0].role,
-                volunteer_id: rows[0].volunteer_id || null
-            };
-            setUnifiedSession(req, user);
-            authTokens.issueForUser(req, res, user);
-            rateLimit.loginOk(req, username);
-            res.redirect(redirect || '/dashboard.php');
-        });
+                user ? 'bad_password' : 'no_user',
+                'portal',
+                user && user.id
+            );
+            return res.render('login', { user: null, error: fail.error, redirect });
+        }
+        if (Number(user.totp_enabled) === 1) {
+            authSecurity.setPending2fa(req, user);
+            return res.render('login_2fa', {
+                user: null,
+                error: '',
+                redirect,
+                username: user.username
+            });
+        }
+        await authSecurity.succeedLogin(req, user, 'portal');
+        completePortalLogin(req, res, user, redirect);
     } catch (err) {
         console.error(err);
         res.render('login', { user: null, error: '服务器内部错误，请稍后重试。', redirect });
+    }
+});
+
+app.post('/login_2fa.php', async (req, res) => {
+    const redirect = safeRedirectTarget(req.body.redirect || req.query.redirect);
+    const pending = authSecurity.getPending2fa(req);
+    if (!pending) {
+        return res.redirect('/login.php?redirect=' + encodeURIComponent(redirect));
+    }
+    try {
+        const started = await authSecurity.beginLogin(req, pending.username, 'portal');
+        if (!started.ok) {
+            return res.status(started.status || 429).render('login_2fa', {
+                user: null,
+                error: started.error,
+                redirect,
+                username: pending.username
+            });
+        }
+        const user = await authSecurity.loadUserById(pending.id);
+        const code = req.body.totp || req.body.code || '';
+        if (!user || Number(user.totp_enabled) !== 1 || !totp.verifyTotp(user.totp_secret, code)) {
+            const fail = await authSecurity.failLogin(req, pending.username, 'bad_totp', 'portal', pending.id);
+            return res.render('login_2fa', {
+                user: null,
+                error: fail.error === '用户名或密码不正确。' ? '动态验证码不正确。' : fail.error,
+                redirect,
+                username: pending.username
+            });
+        }
+        authSecurity.clearPending2fa(req);
+        await authSecurity.succeedLogin(req, user, 'portal');
+        completePortalLogin(req, res, user, redirect);
+    } catch (err) {
+        console.error(err);
+        res.render('login_2fa', {
+            user: null,
+            error: '服务器内部错误，请稍后重试。',
+            redirect,
+            username: pending.username
+        });
     }
 });
 
@@ -255,15 +351,43 @@ app.get('/dashboard.php', requireLogin, async (req, res) => {
     res.render('dashboard', { user, navItems, welcomeName });
 });
 
+app.get('/login_logs.php', requireAdmin, async (req, res) => {
+    try {
+        const data = await authSecurity.listAuditLogs({
+            kind: req.query.kind,
+            page: req.query.page,
+            success: req.query.success,
+            q: req.query.q
+        });
+        res.render('login_logs', {
+            user: currentUser(req),
+            logs: data.rows,
+            total: data.total,
+            page: data.page,
+            pageSize: data.pageSize,
+            retentionDays: data.retentionDays,
+            q: String(req.query.q || ''),
+            success: String(req.query.success || ''),
+            kind: data.kind,
+            kinds: data.kinds || []
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('读取日志失败');
+    }
+});
+
 // 系统设置（仅管理员）
 app.get('/system_settings.php', requireAdmin, async (req, res) => {
     const settings = await loadSettings();
     res.render('system_settings', {
         user: currentUser(req),
+        csrf: ensureCsrf(req),
         settings,
         categories: getCategoryDefs(),
         navItems: getNavItemsFromSettings(settings),
-        defaultNavItems: DEFAULT_NAV_ITEMS
+        defaultNavItems: DEFAULT_NAV_ITEMS,
+        actorHas2fa: await authSecurity.userHas2fa((currentUser(req) || {}).id)
     });
 });
 
@@ -316,8 +440,21 @@ app.post('/form_pass.php', requireLogin, async (req, res) => {
     }
 });
 
-// 档案检索
 app.get('/search.php', async (req, res) => {
+    const settings = await loadSettings();
+    if (!isPublicSearchEnabled(settings)) {
+        return res.status(403).render('search', {
+            user: currentUser(req),
+            q: '',
+            volunteer: null,
+            certsIn: [],
+            certsOut: [],
+            avatarUrl: '',
+            closed: true,
+            error: ''
+        });
+    }
+
     const q = (req.query.query || '').trim();
     let volunteer = null;
     let certsIn = [];
@@ -334,6 +471,7 @@ app.get('/search.php', async (req, res) => {
                 certsIn: [],
                 certsOut: [],
                 avatarUrl: '',
+                closed: false,
                 error: '查询过于频繁，请稍后再试。'
             });
         }
@@ -350,23 +488,26 @@ app.get('/search.php', async (req, res) => {
         volunteer,
         certsIn,
         certsOut,
-        avatarUrl
+        avatarUrl,
+        closed: false
     });
 });
 
-// 扫码档案页（与 search.php 同一套查询，无检索框）
 app.get('/profile.php', async (req, res) => {
     const q = (req.query.query || '').trim();
-    const cardNo = String(req.query.no || '').trim();
+    const ref = String(req.query.no || '').trim();
     const settings = await loadSettings();
-    const foundLink = foundCardLinkFromSettings(settings, cardNo);
     let volunteer = null;
     let certsIn = [];
     let certsOut = [];
     let avatarUrl = '';
     let error = '';
+    let cardNo = '';
+    let foundLink = foundCardLinkFromSettings(settings, ref);
 
-    if (q) {
+    const searchOpen = isPublicSearchEnabled(settings);
+    const allowLookup = !!ref || (searchOpen && !!q);
+    if (allowLookup) {
         const lim = rateLimit.searchGet.hit('ip:' + rateLimit.clientIp(req) + ':profile');
         if (!lim.ok) {
             return res.status(429).render('profile', {
@@ -381,12 +522,24 @@ app.get('/profile.php', async (req, res) => {
                 error: '查询过于频繁，请稍后再试。'
             });
         }
-        const found = await lookupVolunteerProfile(q);
+        let found;
+        if (ref) {
+            const row = await idCards.getByCardNo(ref);
+            if (row && row.vol_id && row.status !== 'lost') {
+                found = await lookupVolunteerById(row.vol_id);
+                cardNo = row.card_no;
+                foundLink = foundCardLinkFromSettings(settings, row.card_no);
+            } else {
+                found = profileFromVolunteerRow(null);
+            }
+        } else {
+            found = await lookupVolunteerProfile(q);
+        }
         volunteer = found.volunteer;
         certsIn = found.certsIn;
         certsOut = found.certsOut;
         avatarUrl = found.avatarUrl;
-        if (!volunteer) error = '未检索到符合条件的队员。';
+        if (!volunteer) error = ref ? '请扫描证件上的二维码。' : '未检索到符合条件的队员。';
     }
 
     res.render('profile', {
@@ -443,10 +596,8 @@ app.get('/id_card.php', async (req, res) => {
                 view = 'unbound';
                 message = '该证件尚未绑定队员。';
             } else {
-                const jump = String(row.badge_number || row.name || '').trim();
-                if (jump) {
-                    const qs = new URLSearchParams({ query: jump, no: row.card_no });
-                    return res.redirect('/profile.php?' + qs.toString());
+                if (row.scan_token || row.card_no) {
+                    return res.redirect('/profile.php?no=' + encodeURIComponent(row.scan_token || row.card_no));
                 }
                 view = 'unbound';
                 message = '该证件尚未绑定队员。';
@@ -476,8 +627,10 @@ app.get('/id_card_qr.php', requireAdmin, async (req, res) => {
     const lim = rateLimit.searchGet.hit('ip:' + rateLimit.clientIp(req) + ':qr');
     if (!lim.ok) return res.status(429).end();
     try {
+        await idCards.ensureScanTokens();
+        const row = await idCards.getByCardNo(no);
         const branding = await getBrandingAsync();
-        const url = cardScanPayload(no, branding);
+        const url = cardScanPayload((row && row.scan_token) || no, branding);
         const svg = qrLocal.toSvg(url, { width: 360 });
         res.setHeader('Cache-Control', 'private, max-age=120');
         res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
@@ -492,7 +645,13 @@ app.get('/id_card_qr.php', requireAdmin, async (req, res) => {
 app.get('/get_cert.php', (req, res) => {
     const lim = rateLimit.certGet.hit('ip:' + rateLimit.clientIp(req));
     if (!lim.ok) return res.status(429).end();
-    const filename = path.basename(req.query.file || '');
+    let filename;
+    try {
+        filename = mediaToken.verifyQuery(req.query);
+    } catch (_) {
+        return res.status(403).end();
+    }
+    if (!filename) return res.status(403).end();
     const filePath = path.join(CERT_DIR, filename);
     const resolved = path.resolve(filePath);
     if (!resolved.startsWith(path.resolve(CERT_DIR)) || !fs.existsSync(resolved)) {
@@ -503,15 +662,21 @@ app.get('/get_cert.php', (req, res) => {
         return res.status(403).end();
     }
     res.set('X-Content-Type-Options', 'nosniff');
-    res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Cache-Control', 'private, no-store');
     res.sendFile(resolved);
 });
 
-// 头像图片（本地 avatars 目录）
+// 头像图片（本地 avatars 目录，带时效签名）
 app.get('/get_avatar.php', (req, res) => {
     const lim = rateLimit.certGet.hit('ip:' + rateLimit.clientIp(req) + ':av');
     if (!lim.ok) return res.status(429).end();
-    const filename = path.basename(req.query.file || '');
+    let filename;
+    try {
+        filename = mediaToken.verifyQuery(req.query);
+    } catch (_) {
+        return res.status(403).end();
+    }
+    if (!filename) return res.status(403).end();
     const filePath = path.join(AVATAR_DIR, filename);
     const resolved = path.resolve(filePath);
     if (!resolved.startsWith(path.resolve(AVATAR_DIR)) || !fs.existsSync(resolved)) {
@@ -522,12 +687,8 @@ app.get('/get_avatar.php', (req, res) => {
         return res.status(403).end();
     }
     res.set('X-Content-Type-Options', 'nosniff');
-    res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Cache-Control', 'private, no-store');
     res.sendFile(resolved);
-});
-
-app.get('/view_cert.php', (req, res) => {
-    res.redirect(`/get_cert.php?file=${encodeURIComponent(req.query.file || '')}`);
 });
 
 function getUploadedFile(req, field) {
@@ -560,6 +721,11 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
     const csrf = ensureCsrf(req);
     let msg = flashMsg(req.query);
     let listTab = String(req.query.tab || '') === 'cards' ? 'cards' : 'people';
+    try {
+        res.locals.actorHas2fa = await authSecurity.userHas2fa((currentUser(req) || {}).id);
+    } catch (_) {
+        res.locals.actorHas2fa = false;
+    }
 
     try {
         if (req.method === 'POST') {
@@ -567,6 +733,20 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 return res.status(403).send('❌ 安全警告：CSRF 验证失败，请求非法。');
             }
             const body = req.body || {};
+            if (authSecurity.isSensitiveAdminBody(body)) {
+                const re = await authSecurity.verifyReauth(req, body, verifyPassword);
+                if (!re.ok) {
+                    const vid = parseInt(body.vid, 10);
+                    if (body.delete_id_card !== undefined) {
+                        return res.redirect('/admin_edit.php?tab=cards&msg=reauth_fail');
+                    }
+                    if (body.update_account !== undefined || body.create_account !== undefined || body.disable_2fa !== undefined) {
+                        return res.redirect('/admin_edit.php?account_id=' + (vid || '') + '&msg=reauth_fail');
+                    }
+                    if (vid) return res.redirect('/admin_edit.php?edit_id=' + vid + '&msg=reauth_fail');
+                    return res.redirect('/admin_edit.php?msg=reauth_fail');
+                }
+            }
             if (
                 body.add_id_card !== undefined
                 || body.save_id_card !== undefined
@@ -697,6 +877,10 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 && body.create_account === undefined
                 && body.update_account === undefined
                 && body.update_cert_info === undefined
+                && body.start_2fa === undefined
+                && body.confirm_2fa === undefined
+                && body.cancel_2fa_setup === undefined
+                && body.disable_2fa === undefined
                 && body.add_id_card === undefined
                 && body.save_id_card === undefined
                 && body.lose_id_card === undefined
@@ -853,6 +1037,15 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                         'INSERT INTO users (username, password_hash, role, volunteer_id) VALUES (?, ?, ?, ?)',
                         [body.username, hash, body.role, body.vid]
                     );
+                    const vn = await query('SELECT name FROM volunteers WHERE id=?', [body.vid]);
+                    writeProfileLog(pool, {
+                        ...actorFromReq(req),
+                        action: 'create_account',
+                        volunteerId: parseInt(body.vid, 10) || 0,
+                        volunteerName: vn[0] ? vn[0].name : null,
+                        summary: `开通账号 ${body.username}（${body.role}）`,
+                        after: { username: body.username, role: body.role }
+                    });
                     msg = '✅ 系统账号分配成功！';
                 }
             }
@@ -878,6 +1071,65 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                     );
                     msg = '✅ 账号信息已更新！';
                 }
+                if (msg && msg.indexOf('✅') === 0) {
+                    const vn = await query('SELECT name FROM volunteers WHERE id=?', [body.vid]);
+                    writeProfileLog(pool, {
+                        ...actorFromReq(req),
+                        action: 'update_account',
+                        volunteerId: parseInt(body.vid, 10) || 0,
+                        volunteerName: vn[0] ? vn[0].name : null,
+                        targetUserId: uid,
+                        summary: `更新账号 ${body.username}（${body.role}）`,
+                        after: { username: body.username, role: body.role, password_reset: !!(body.new_password) }
+                    });
+                }
+            }
+
+            if (body.start_2fa !== undefined) {
+                const uid = parseInt(body.uid, 10);
+                const secret = totp.generateSecret();
+                await query('UPDATE users SET totp_pending=? WHERE id=? AND volunteer_id=?', [secret, uid, body.vid]);
+                return res.redirect('/admin_edit.php?account_id=' + encodeURIComponent(body.vid) + '&setup_2fa=1');
+            }
+
+            if (body.confirm_2fa !== undefined) {
+                const uid = parseInt(body.uid, 10);
+                const rows = await query('SELECT totp_pending FROM users WHERE id=? AND volunteer_id=?', [uid, body.vid]);
+                const pendingSecret = rows[0] && rows[0].totp_pending;
+                if (!pendingSecret || !totp.verifyTotp(pendingSecret, body.totp_setup)) {
+                    return res.redirect('/admin_edit.php?account_id=' + encodeURIComponent(body.vid) + '&setup_2fa=1&msg=2fa_bad');
+                }
+                await query(
+                    'UPDATE users SET totp_secret=?, totp_enabled=1, totp_pending=NULL WHERE id=?',
+                    [pendingSecret, uid]
+                );
+                writeProfileLog(pool, {
+                    ...actorFromReq(req),
+                    action: 'enable_2fa',
+                    volunteerId: parseInt(body.vid, 10) || 0,
+                    targetUserId: uid,
+                    summary: '开启 2FA'
+                });
+                return res.redirect('/admin_edit.php?account_id=' + encodeURIComponent(body.vid) + '&msg=2fa_on');
+            }
+
+            if (body.cancel_2fa_setup !== undefined) {
+                const uid = parseInt(body.uid, 10);
+                await query('UPDATE users SET totp_pending=NULL WHERE id=? AND totp_enabled=0', [uid]);
+                return res.redirect('/admin_edit.php?account_id=' + encodeURIComponent(body.vid));
+            }
+
+            if (body.disable_2fa !== undefined) {
+                const uid = parseInt(body.uid, 10);
+                await query('UPDATE users SET totp_secret=NULL, totp_pending=NULL, totp_enabled=0 WHERE id=?', [uid]);
+                writeProfileLog(pool, {
+                    ...actorFromReq(req),
+                    action: 'disable_2fa',
+                    volunteerId: parseInt(body.vid, 10) || 0,
+                    targetUserId: uid,
+                    summary: '关闭 2FA'
+                });
+                return res.redirect('/admin_edit.php?account_id=' + encodeURIComponent(body.vid) + '&msg=2fa_off');
             }
 
             if (body.update_cert_info !== undefined) {
@@ -916,13 +1168,28 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 const rows = await query(`SELECT image_url FROM ${table} WHERE id=?`, [certId]);
                 if (rows[0]) deleteCertificateFile(rows[0].image_url);
                 await query(`DELETE FROM ${table} WHERE id=?`, [certId]);
+                writeProfileLog(pool, {
+                    ...actorFromReq(req),
+                    action: 'delete_cert',
+                    volunteerId: parseInt(body.vid, 10) || 0,
+                    entityType: body.type,
+                    entityId: parseInt(certId, 10) || null,
+                    summary: '删除资质'
+                });
                 return res.redirect(`?edit_id=${body.vid}&msg=deleted`);
             }
 
             if (body.delete_volunteer !== undefined) {
                 const vid = parseInt(body.vid, 10);
                 if (!vid) return res.status(400).send('缺少队员 ID');
-                const volRows = await query('SELECT avatar_url FROM volunteers WHERE id=?', [vid]);
+                const volRows = await query('SELECT avatar_url, name FROM volunteers WHERE id=?', [vid]);
+                writeProfileLog(pool, {
+                    ...actorFromReq(req),
+                    action: 'delete_volunteer',
+                    volunteerId: vid,
+                    volunteerName: volRows[0] ? volRows[0].name : null,
+                    summary: '删除队员档案'
+                });
                 for (const tbl of ['certs_internal', 'certs_external']) {
                     const imgs = await query(`SELECT image_url FROM ${tbl} WHERE volunteer_id=?`, [vid]);
                     imgs.forEach((r) => deleteCertificateFile(r.image_url));
@@ -945,7 +1212,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 ...vols[0],
                 join_date: formatDateInput(vols[0].join_date),
                 phone: vols[0].phone != null ? String(vols[0].phone) : '',
-                agency: vols[0].agency != null ? String(vols[0].agency) : ''
+                agency: vols[0].agency != null ? String(vols[0].agency) : '',
+                avatar_src: publicAvatarUrl(vols[0].avatar_url)
             };
             const internal = await query('SELECT * FROM certs_internal WHERE volunteer_id=?', [vid]);
             const external = await query('SELECT * FROM certs_external WHERE volunteer_id=?', [vid]);
@@ -957,7 +1225,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                     label: '[队内]',
                     color: '#0056b3',
                     dateInfo: `(${formatDateInput(c.issue_date)})`,
-                    show_on_dispatch: Number(c.show_on_dispatch) === 1
+                    show_on_dispatch: Number(c.show_on_dispatch) === 1,
+                    cert_src: mediaToken.certUrl(c.image_url)
                 })),
                 ...external.map((c) => ({
                     ...c,
@@ -967,7 +1236,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                     label: '[通用]',
                     color: '#28a745',
                     dateInfo: `(至 ${formatDateInput(c.expiry_date)})`,
-                    show_on_dispatch: Number(c.show_on_dispatch) === 1
+                    show_on_dispatch: Number(c.show_on_dispatch) === 1,
+                    cert_src: mediaToken.certUrl(c.image_url)
                 }))
             ];
             return res.render('admin_edit', {
@@ -998,7 +1268,8 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
                 ...rows[0],
                 issue_date: formatDateInput(rows[0].issue_date),
                 expiry_date: formatDateInput(rows[0].expiry_date),
-                show_on_dispatch: Number(rows[0].show_on_dispatch) === 1
+                show_on_dispatch: Number(rows[0].show_on_dispatch) === 1,
+                cert_src: mediaToken.certUrl(rows[0].image_url)
             };
             return res.render('admin_edit', {
                 user: currentUser(req),
@@ -1022,14 +1293,29 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
             const vid = parseInt(req.query.account_id, 10);
             const vols = await query('SELECT id, name FROM volunteers WHERE id=?', [vid]);
             if (!vols.length) return res.status(404).send('未找到该队员！');
-            const users = await query('SELECT * FROM users WHERE volunteer_id=?', [vid]);
+            const users = await query(
+                'SELECT id, username, role, totp_enabled, totp_pending FROM users WHERE volunteer_id=?',
+                [vid]
+            );
+            const accountUser = users[0] || null;
+            let totpQr = '';
+            let totpSecret = '';
+            const showSetup = String(req.query.setup_2fa || '') === '1' && accountUser && accountUser.totp_pending;
+            if (showSetup) {
+                totpSecret = accountUser.totp_pending;
+                const issuer = (res.locals.branding && res.locals.branding.internal_platform_name) || '内部平台';
+                totpQr = qrLocal.toDataUri(totp.otpauthUrl(totpSecret, accountUser.username, issuer), { width: 220 });
+            }
             return res.render('admin_edit', {
                 user: currentUser(req),
                 csrf,
                 msg,
                 mode: 'account',
                 vol: vols[0],
-                accountUser: users[0] || null,
+                accountUser,
+                totpQr,
+                totpSecret,
+                showSetup: !!showSetup,
                 certs: [],
                 agencies: [],
                 volunteers: [],
@@ -1055,7 +1341,7 @@ app.all('/admin_edit.php', requireAdmin, optionalImageUpload, async (req, res) =
             scanBase = branding && branding.id_card_scan_base;
         } catch (_) { /* ignore */ }
         cards = (cards || []).map((c) => {
-            const scanUrl = cardScanPayload(c.card_no, { id_card_scan_base: scanBase });
+            const scanUrl = cardScanPayload(c.scan_token || c.card_no, { id_card_scan_base: scanBase });
             let qrDataUri = '';
             try {
                 qrDataUri = qrLocal.toDataUri(scanUrl, { width: 240 });
@@ -1094,4 +1380,3 @@ return app;
 module.exports = { createApp };
 module.exports.createApp = createApp;
 // 兼容：默认导出 app 工厂结果需由入口创建
-

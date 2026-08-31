@@ -120,6 +120,17 @@ const DEFAULT_NAV_ITEMS = [
         admin_only: true,
         enabled: true,
         accent: '#28a745'
+    },
+    {
+        id: 'login_logs',
+        icon: '📜',
+        title: '操作日志',
+        desc: '用于审计系统更改、用户操作的日志',
+        href: '/login_logs.php',
+        target: '_self',
+        admin_only: true,
+        enabled: true,
+        accent: '#0056b3'
     }
 ];
 
@@ -160,7 +171,7 @@ function parseNavItems(raw) {
     if (!list || !list.length) {
         return DEFAULT_NAV_ITEMS.map((item, i) => normalizeNavItem(item, i));
     }
-    return list.map((item, i) => {
+    const mapped = list.map((item, i) => {
         const n = normalizeNavItem(item, i);
         if (n.id === 'admin_edit' && n.title === '队员档案与资质管理') {
             n.title = '证件人员综合管理';
@@ -168,8 +179,17 @@ function parseNavItems(raw) {
                 n.desc = '队员档案、资质证书与实体证件卡（绑定/未绑定/挂失与扫码）。';
             }
         }
+        if (n.id === 'login_logs' && n.title === '登录日志') {
+            n.title = '操作日志';
+            n.desc = '用于审计系统更改、用户操作的日志';
+        }
         return n;
     });
+    if (!mapped.some((item) => item.id === 'login_logs')) {
+        const def = DEFAULT_NAV_ITEMS.find((item) => item.id === 'login_logs');
+        if (def) mapped.push(normalizeNavItem(def, mapped.length));
+    }
+    return mapped;
 }
 
 function stringifyNavItems(raw) {
@@ -240,6 +260,15 @@ const CATEGORY_DEFS = {
                 type: 'text',
                 default: ''
             },
+            public_search_enabled: {
+                label: '公开档案检索',
+                type: 'toggle',
+                options: [
+                    { value: '1', label: '打开' },
+                    { value: '0', label: '关闭' }
+                ],
+                default: '1'
+            },
             id_card_scan_base: {
                 label: '证件二维码根地址（本系统）',
                 type: 'url',
@@ -267,6 +296,60 @@ const CATEGORY_DEFS = {
                 optional: true,
                 default: '',
                 placeholder: 'https://... 可用 {no} 代入证件号'
+            }
+        }
+    },
+    logs: {
+        label: '日志保留',
+        description: '各类操作日志分别设置保留天数。',
+        fields: {
+            retain_auth_login_logs: {
+                label: '登录日志',
+                type: 'number',
+                unit: '天',
+                min: 1,
+                max: 3650,
+                default: '180'
+            },
+            retain_rms_event_logs: {
+                label: '事件上报 / 事件操作日志',
+                type: 'number',
+                unit: '天',
+                min: 1,
+                max: 3650,
+                default: '180'
+            },
+            retain_org_settings_logs: {
+                label: '系统设置日志',
+                type: 'number',
+                unit: '天',
+                min: 1,
+                max: 3650,
+                default: '180'
+            },
+            retain_org_profile_logs: {
+                label: '档案 / 证件操作日志',
+                type: 'number',
+                unit: '天',
+                min: 1,
+                max: 3650,
+                default: '180'
+            },
+            retain_dispatch_message_logs: {
+                label: '调度消息日志',
+                type: 'number',
+                unit: '天',
+                min: 1,
+                max: 3650,
+                default: '180'
+            },
+            retain_rms_status_logs: {
+                label: '人员状态日志',
+                type: 'number',
+                unit: '天',
+                min: 1,
+                max: 3650,
+                default: '180'
             }
         }
     },
@@ -931,6 +1014,26 @@ function resolveSlaFromSettings(settings, reportTypeLabel, priority) {
     };
 }
 
+async function detectLogsRetentionChange(incoming) {
+    const current = await loadSettings();
+    const merged = deepMergeKnown(current, incoming);
+    const fields = (CATEGORY_DEFS.logs && CATEGORY_DEFS.logs.fields) || {};
+    const diffs = [];
+    Object.keys(fields).forEach((key) => {
+        const before = String((current.logs && current.logs[key]) || fields[key].default || '');
+        const after = String((merged.logs && merged.logs[key]) || '');
+        if (before !== after) {
+            diffs.push({
+                key,
+                label: fields[key].label || key,
+                before,
+                after
+            });
+        }
+    });
+    return { changed: diffs.length > 0, diffs, current, merged };
+}
+
 const SECRET_SETTING_KEYS = new Set(['wecom_webhook_url', 'public_report_token']);
 
 /** 非管理员读接口去掉密钥，页面功能仍可用（品牌/导航不依赖 Webhook） */
@@ -969,6 +1072,7 @@ module.exports = {
     getAgencyListFromSettings,
     parseNavItems,
     getNavItemsFromSettings,
+    detectLogsRetentionChange,
     SLA_TYPE_KEYS,
     SLA_PRIORITY_KEYS
 };

@@ -124,7 +124,7 @@
                 <ul class="vp-list">
                     <% if (certsIn.length) { %>
                         <% certsIn.forEach(function(c, i) { %>
-                        <li class="vp-cert<%= c.image_url ? ' is-open' : '' %><%= i >= 3 ? ' is-folded' : '' %>"<% if (c.image_url) { %> role="button" tabindex="0" data-cert-src="get_cert.php?file=<%= encodeURIComponent(c.image_url) %>"<% } %>>
+                        <li class="vp-cert<%= c.image_url ? ' is-open' : '' %><%= i >= 3 ? ' is-folded' : '' %>"<% if (c.image_url) { %> role="button" tabindex="0" data-cert-src="<%= c.cert_src %>"<% } %>>
                             <div class="vp-cert-name"><%= c.cert_name %></div>
                             <div class="vp-cert-meta">获得日期：<%= c.issue_date || '—' %></div>
                             <% if (c.image_url) { %><div class="vp-cert-hint">点击查看凭证</div><% } %>
@@ -143,7 +143,7 @@
                 <ul class="vp-list">
                     <% if (certsOut.length) { %>
                         <% certsOut.forEach(function(c, i) { %>
-                        <li class="vp-cert ext<%= c.image_url ? ' is-open' : '' %><%= i >= 3 ? ' is-folded' : '' %>"<% if (c.image_url) { %> role="button" tabindex="0" data-cert-src="get_cert.php?file=<%= encodeURIComponent(c.image_url) %>"<% } %>>
+                        <li class="vp-cert ext<%= c.image_url ? ' is-open' : '' %><%= i >= 3 ? ' is-folded' : '' %>"<% if (c.image_url) { %> role="button" tabindex="0" data-cert-src="<%= c.cert_src %>"<% } %>>
                             <div class="vp-cert-name"><%= c.cert_name %></div>
                             <div class="vp-cert-meta">
                                 取得日期：<%= c.issue_date || '—' %>

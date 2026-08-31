@@ -6,6 +6,7 @@
  * 旧表 dispatch_logs 不再写入，也不在启动时删除。
  */
 const crypto = require('crypto');
+const deviceInfo = require('../../_shared/deviceInfo');
 
 const STATUS_LABEL = {
     1: '待命',
@@ -96,6 +97,19 @@ async function ensureRmsLogTables(db) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     // 待接受指派
+    for (const [table, cols] of [
+        ['rms_status_logs', [['device', 'VARCHAR(255) NULL'], ['user_agent', 'VARCHAR(512) NULL']]],
+        ['rms_event_logs', [['device', 'VARCHAR(255) NULL'], ['user_agent', 'VARCHAR(512) NULL']]],
+        ['dispatch_message_logs', [['ip', 'VARCHAR(64) NULL'], ['device', 'VARCHAR(255) NULL'], ['user_agent', 'VARCHAR(512) NULL']]]
+    ]) {
+        for (const [col, def] of cols) {
+            try {
+                await db.query(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+            } catch (err) {
+                if (!err || err.code !== 'ER_DUP_FIELDNAME') throw err;
+            }
+        }
+    }
     try {
         const [cols] = await db.query("SHOW COLUMNS FROM users LIKE 'pending_event_id'");
         if (!cols.length) {
@@ -116,8 +130,8 @@ async function writeStatusLog(db, entry = {}) {
         await db.query(
             `INSERT INTO rms_status_logs
              (action, from_status, to_status, actor_user_id, actor_username,
-              target_user_id, target_username, event_id, event_title, summary, detail, ip)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?)`,
+              target_user_id, target_username, event_id, event_title, summary, detail, ip, device, user_agent)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?)`,
             [
                 String(entry.action || 'change_status').slice(0, 64),
                 entry.fromStatus != null ? Number(entry.fromStatus) : null,
@@ -130,7 +144,9 @@ async function writeStatusLog(db, entry = {}) {
                 entry.eventTitle != null ? String(entry.eventTitle).slice(0, 255) : null,
                 String(entry.summary || entry.action || '状态变更').slice(0, 500),
                 toDetail(entry.detail),
-                entry.ip != null ? String(entry.ip).slice(0, 64) : null
+                entry.ip != null ? String(entry.ip).slice(0, 64) : null,
+                entry.device != null ? String(entry.device).slice(0, 255) : null,
+                entry.userAgent != null ? String(entry.userAgent).slice(0, 512) : null
             ]
         );
     } catch (err) {
@@ -144,8 +160,8 @@ async function writeEventLog(db, entry = {}) {
         await db.query(
             `INSERT INTO rms_event_logs
              (action, actor_user_id, actor_username, target_user_id, target_username,
-              event_id, event_title, summary, detail, ip)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?)`,
+              event_id, event_title, summary, detail, ip, device, user_agent)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?)`,
             [
                 String(entry.action || 'unknown').slice(0, 64),
                 entry.actorUserId != null ? entry.actorUserId : null,
@@ -156,7 +172,9 @@ async function writeEventLog(db, entry = {}) {
                 entry.eventTitle != null ? String(entry.eventTitle).slice(0, 255) : null,
                 String(entry.summary || entry.action || '事件操作').slice(0, 500),
                 toDetail(entry.detail),
-                entry.ip != null ? String(entry.ip).slice(0, 64) : null
+                entry.ip != null ? String(entry.ip).slice(0, 64) : null,
+                entry.device != null ? String(entry.device).slice(0, 255) : null,
+                entry.userAgent != null ? String(entry.userAgent).slice(0, 512) : null
             ]
         );
     } catch (err) {
@@ -171,8 +189,8 @@ async function writeMessageLog(db, entry = {}) {
             `INSERT INTO dispatch_message_logs
              (kind, channel, batch_id, actor_user_id, actor_username,
               recipient_user_id, recipient_username, recipient_display_name,
-              scope, scope_label, message, detail)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON))`,
+              scope, scope_label, message, detail, ip, device, user_agent)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?)`,
             [
                 entry.kind || 'unicast',
                 String(entry.channel || 'terminal').slice(0, 16),
@@ -185,7 +203,10 @@ async function writeMessageLog(db, entry = {}) {
                 entry.scope != null ? String(entry.scope).slice(0, 32) : null,
                 entry.scopeLabel != null ? String(entry.scopeLabel).slice(0, 255) : null,
                 String(entry.message || ''),
-                toDetail(entry.detail)
+                toDetail(entry.detail),
+                entry.ip != null ? String(entry.ip).slice(0, 64) : null,
+                entry.device != null ? String(entry.device).slice(0, 255) : null,
+                entry.userAgent != null ? String(entry.userAgent).slice(0, 512) : null
             ]
         );
         return result.insertId || null;
@@ -211,9 +232,13 @@ function actorFromSocket(socket) {
             ? { id: sess.user_id, username: sess.username }
             : null);
         if (!user) return { actorUserId: null, actorUsername: null };
+        const fp = deviceInfo.fromReq(req, true);
         return {
             actorUserId: user.id || null,
-            actorUsername: user.username || null
+            actorUsername: user.username || null,
+            ip: fp.ip,
+            device: fp.device,
+            userAgent: fp.userAgent
         };
     } catch (_) {
         return { actorUserId: null, actorUsername: null };
@@ -225,6 +250,12 @@ function clientIp(req) {
     const xf = req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip']);
     if (xf) return String(xf).split(',')[0].trim();
     return req.socket && req.socket.remoteAddress ? String(req.socket.remoteAddress) : null;
+}
+
+function deviceFromReq(req) {
+    if (!req) return { ip: null, device: null, userAgent: null };
+    const fp = deviceInfo.fromReq(req, true);
+    return { ip: fp.ip, device: fp.device, userAgent: fp.userAgent };
 }
 
 /** @deprecated 兼容旧调用名：默认写入事件日志（需带 eventId） */
@@ -248,5 +279,6 @@ module.exports = {
     newBatchId,
     actorFromSocket,
     clientIp,
+    deviceFromReq,
     STATUS_LABEL
 };

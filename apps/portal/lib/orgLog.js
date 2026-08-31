@@ -57,6 +57,15 @@ async function ensureOrgLogTables(db) {
           KEY idx_opl_action_time (action, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+    for (const table of ['org_settings_logs', 'org_profile_logs']) {
+        for (const [col, def] of [['device', 'VARCHAR(255) NULL'], ['user_agent', 'VARCHAR(512) NULL']]) {
+            try {
+                await q(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+            } catch (err) {
+                if (!err || err.code !== 'ER_DUP_FIELDNAME') throw err;
+            }
+        }
+    }
     ensured = true;
 }
 
@@ -66,8 +75,8 @@ async function writeSettingsLog(db, entry = {}) {
         await ensureOrgLogTables(db);
         await db.query(
             `INSERT INTO org_settings_logs
-             (action, actor_user_id, actor_username, category, summary, before_json, after_json, detail, ip)
-             VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?)`,
+             (action, actor_user_id, actor_username, category, summary, before_json, after_json, detail, ip, device, user_agent)
+             VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?, ?, ?)`,
             [
                 String(entry.action || 'update_settings').slice(0, 64),
                 entry.actorUserId != null ? entry.actorUserId : null,
@@ -77,7 +86,9 @@ async function writeSettingsLog(db, entry = {}) {
                 toJson(entry.before),
                 toJson(entry.after),
                 toJson(entry.detail),
-                entry.ip != null ? String(entry.ip).slice(0, 64) : null
+                entry.ip != null ? String(entry.ip).slice(0, 64) : null,
+                entry.device != null ? String(entry.device).slice(0, 255) : null,
+                entry.userAgent != null ? String(entry.userAgent).slice(0, 512) : null
             ]
         );
     } catch (err) {
@@ -92,8 +103,8 @@ async function writeProfileLog(db, entry = {}) {
         await db.query(
             `INSERT INTO org_profile_logs
              (action, actor_user_id, actor_username, volunteer_id, volunteer_name, target_user_id,
-              entity_type, entity_id, summary, before_json, after_json, detail, ip)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?)`,
+              entity_type, entity_id, summary, before_json, after_json, detail, ip, device, user_agent)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS JSON), CAST(? AS JSON), CAST(? AS JSON), ?, ?, ?)`,
             [
                 String(entry.action || 'update_volunteer').slice(0, 64),
                 entry.actorUserId != null ? entry.actorUserId : null,
@@ -107,7 +118,9 @@ async function writeProfileLog(db, entry = {}) {
                 toJson(entry.before),
                 toJson(entry.after),
                 toJson(entry.detail),
-                entry.ip != null ? String(entry.ip).slice(0, 64) : null
+                entry.ip != null ? String(entry.ip).slice(0, 64) : null,
+                entry.device != null ? String(entry.device).slice(0, 255) : null,
+                entry.userAgent != null ? String(entry.userAgent).slice(0, 512) : null
             ]
         );
     } catch (err) {

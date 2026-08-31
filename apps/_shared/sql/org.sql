@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
   current_event_id INT NULL DEFAULT NULL,
   pending_event_id INT NULL DEFAULT NULL,
   last_login DATETIME NULL,
+  totp_secret VARCHAR(64) NULL,
+  totp_pending VARCHAR(64) NULL,
+  totp_enabled TINYINT NOT NULL DEFAULT 0,
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_username (username),
   KEY idx_users_volunteer (volunteer_id),
@@ -37,6 +40,7 @@ CREATE TABLE IF NOT EXISTS volunteers (
 CREATE TABLE IF NOT EXISTS id_cards (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   card_no VARCHAR(64) NOT NULL COMMENT '证件号，全局唯一',
+  scan_token CHAR(32) NULL,
   note VARCHAR(255) NOT NULL DEFAULT '' COMMENT '卡片备注',
   volunteer_id INT UNSIGNED NULL COMMENT '绑定队员；未绑定为 NULL；挂失仍保留',
   status VARCHAR(16) NOT NULL DEFAULT 'unbound' COMMENT 'unbound未绑定 / bound已绑定 / lost挂失',
@@ -44,6 +48,7 @@ CREATE TABLE IF NOT EXISTS id_cards (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_id_cards_no (card_no),
+  UNIQUE KEY uk_id_cards_token (scan_token),
   UNIQUE KEY uk_id_cards_vol (volunteer_id),
   KEY idx_id_cards_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -108,6 +113,8 @@ CREATE TABLE IF NOT EXISTS org_settings_logs (
   after_json JSON NULL,
   detail JSON NULL,
   ip VARCHAR(64) NULL,
+  device VARCHAR(255) NULL,
+  user_agent VARCHAR(512) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_osl_time (created_at),
@@ -129,6 +136,8 @@ CREATE TABLE IF NOT EXISTS org_profile_logs (
   after_json JSON NULL,
   detail JSON NULL,
   ip VARCHAR(64) NULL,
+  device VARCHAR(255) NULL,
+  user_agent VARCHAR(512) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_opl_vol_time (volunteer_id, created_at),
@@ -149,6 +158,8 @@ CREATE TABLE IF NOT EXISTS rms_status_logs (
   summary VARCHAR(500) NOT NULL,
   detail JSON NULL,
   ip VARCHAR(64) NULL,
+  device VARCHAR(255) NULL,
+  user_agent VARCHAR(512) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_rsl_target_time (target_user_id, created_at),
@@ -168,6 +179,8 @@ CREATE TABLE IF NOT EXISTS rms_event_logs (
   summary VARCHAR(500) NOT NULL,
   detail JSON NULL,
   ip VARCHAR(64) NULL,
+  device VARCHAR(255) NULL,
+  user_agent VARCHAR(512) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_rel_event_time (event_id, created_at),
@@ -189,6 +202,9 @@ CREATE TABLE IF NOT EXISTS dispatch_message_logs (
   scope_label VARCHAR(255) NULL,
   message TEXT NOT NULL,
   detail JSON NULL,
+  ip VARCHAR(64) NULL,
+  device VARCHAR(255) NULL,
+  user_agent VARCHAR(512) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_dml_recipient_time (recipient_user_id, created_at),
@@ -217,4 +233,28 @@ CREATE TABLE IF NOT EXISTS auth_refresh_tokens (
   PRIMARY KEY (jti),
   KEY idx_art_user (user_id),
   KEY idx_art_exp (exp)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS auth_login_logs (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  success TINYINT NOT NULL DEFAULT 0,
+  username VARCHAR(64) NOT NULL DEFAULT '',
+  user_id INT UNSIGNED NULL,
+  ip VARCHAR(64) NOT NULL DEFAULT '',
+  user_agent VARCHAR(512) NULL,
+  device VARCHAR(255) NULL,
+  reason VARCHAR(64) NULL,
+  source VARCHAR(16) NOT NULL DEFAULT 'portal',
+  PRIMARY KEY (id),
+  KEY idx_all_time (created_at),
+  KEY idx_all_user (username, created_at),
+  KEY idx_all_success (success, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS auth_lockouts (
+  username_key VARCHAR(64) NOT NULL,
+  fail_count INT NOT NULL DEFAULT 0,
+  locked_until DATETIME NULL,
+  PRIMARY KEY (username_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

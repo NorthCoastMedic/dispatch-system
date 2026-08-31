@@ -14,7 +14,6 @@ function normalizeScanBase(raw) {
     return s.replace(/\/+$/, '');
 }
 
-/** 只由证件号决定，与绑定谁无关，也不随当前访问 IP 变化 */
 function scanTarget(cardNo, scanBase) {
     const no = String(cardNo == null ? '' : cardNo).trim();
     const path = '/id_card.php?no=' + encodeURIComponent(no);

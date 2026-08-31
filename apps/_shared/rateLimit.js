@@ -75,7 +75,7 @@ function createLimiter({ windowMs, max }) {
 }
 
 const loginIp = createLimiter({ windowMs: 15 * 60 * 1000, max: 30 });
-const loginUser = createLimiter({ windowMs: 15 * 60 * 1000, max: 8 });
+const loginUser = createLimiter({ windowMs: 15 * 60 * 1000, max: 5 });
 const publicReport = createLimiter({ windowMs: 10 * 60 * 1000, max: 12 });
 const searchGet = createLimiter({ windowMs: 60 * 1000, max: 40 });
 const certGet = createLimiter({ windowMs: 60 * 1000, max: 90 });

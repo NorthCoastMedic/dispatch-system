@@ -128,7 +128,7 @@
                         <img src="<%= vol.avatar_url %>" alt="当前头像" style="width:96px; height:96px; object-fit:cover; border-radius:50%; border:1px solid var(--pt-border, #e2e8f0); background: var(--pt-input-bg, #fff);">
                         <small style="display:block; color:#b45309; margin-top:6px;">请重新上传本地文件以替换。</small>
                         <% } else { %>
-                        <img src="/get_avatar.php?file=<%= encodeURIComponent(vol.avatar_url) %>" alt="当前头像" style="width:96px; height:96px; object-fit:cover; border-radius:50%; border:1px solid var(--pt-border, #e2e8f0); background: var(--pt-input-bg, #fff);">
+                        <img src="<%= vol.avatar_src %>" alt="当前头像" style="width:96px; height:96px; object-fit:cover; border-radius:50%; border:1px solid var(--pt-border, #e2e8f0); background: var(--pt-input-bg, #fff);">
                         <% } %>
                     </div>
                     <% } else { %>
@@ -143,8 +143,7 @@
                 </div>
             </form>
         </div>
-        <form method="POST" action="/admin_edit.php" class="delete-vol-bar"
-              onsubmit="return confirm('警告：您确定要彻底删除该人员吗？\n\n此操作将删除与该人员相关的数据且无法恢复！')">
+        <form method="POST" action="/admin_edit.php" class="delete-vol-bar js-reauth-form">
             <input type="hidden" name="csrf_token" value="<%= csrf %>">
             <input type="hidden" name="delete_volunteer" value="1">
             <input type="hidden" name="vid" value="<%= vol.id %>">
@@ -168,8 +167,7 @@
                         </span>
                         <div class="btn-group">
                             <a href="?edit_cert_id=<%= c.id %>&type=<%= c.type %>&vid=<%= vol.id %>" class="btn" style="background:#ffc107; color:#333; padding:5px 10px; font-size:13px;">编辑</a>
-                            <form method="POST" action="/admin_edit.php" style="display:inline;"
-                                  onsubmit="return confirm('确定删除并删除原图吗？')">
+                            <form method="POST" action="/admin_edit.php" style="display:inline;" class="js-reauth-form">
                                 <input type="hidden" name="csrf_token" value="<%= csrf %>">
                                 <input type="hidden" name="del_cert" value="<%= c.id %>">
                                 <input type="hidden" name="type" value="<%= c.type %>">
@@ -238,8 +236,8 @@
                     <% if (cert.image_url) { %>
                     <div style="margin-bottom:10px;">
                         <small style="color:#666; display:block; margin-bottom:6px;">当前照片：</small>
-                        <a href="/get_cert.php?file=<%= encodeURIComponent(cert.image_url) %>" target="_blank" rel="noopener">
-                            <img src="/get_cert.php?file=<%= encodeURIComponent(cert.image_url) %>"
+                        <a href="<%= cert.cert_src %>" target="_blank" rel="noopener">
+                            <img src="<%= cert.cert_src %>"
                                  alt="当前证书"
                                  style="max-width:100%; max-height:220px; border-radius:4px; border:1px solid #e2e8f0; object-fit:contain; background:#fff;">
                         </a>
@@ -270,8 +268,45 @@
                         <option value="admin" <%= accountUser.role === 'admin' ? 'selected' : '' %>>管理员</option>
                     </select>
                     <label>重置密码:</label><input type="password" name="new_password" placeholder="留空则不更改；填写则须含大小写字母和数字" minlength="8" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}" title="须含大写字母、小写字母和数字，至少 8 位" class="input-field">
-                    <button type="submit" name="update_account" value="1" class="btn" style="background:#0056b3; color:white; padding:12px;">保存更新</button>
+                    <button type="submit" name="update_account" value="1" class="btn js-reauth" style="background:#0056b3; color:white; padding:12px;">保存更新</button>
                 </form>
+                <div style="margin-top:28px; padding-top:16px; border-top:1px solid #eee;">
+                    <h3 style="margin:0 0 10px; font-size:16px;">双因素认证 (2FA)</h3>
+                    <% if (accountUser.totp_enabled) { %>
+                        <p style="margin:0 0 12px; color:#15803d; font-weight:700;">已开启</p>
+                        <form method="POST" class="js-reauth-form">
+                            <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                            <input type="hidden" name="uid" value="<%= accountUser.id %>">
+                            <input type="hidden" name="vid" value="<%= vol.id %>">
+                            <button type="submit" name="disable_2fa" value="1" class="btn" style="background:#dc3545; color:white;">关闭 2FA</button>
+                        </form>
+                    <% } else if (typeof showSetup !== 'undefined' && showSetup && totpQr) { %>
+                        <p style="margin:0 0 10px; font-size:13px; color:#555;">用身份验证器扫描后输入动态码确认。</p>
+                        <img src="<%= totpQr %>" alt="2FA QR" width="220" height="220" style="display:block; margin:0 auto 10px;">
+                        <p style="font-family:monospace; font-size:13px; word-break:break-all; text-align:center;"><%= totpSecret %></p>
+                        <form method="POST" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;">
+                            <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                            <input type="hidden" name="uid" value="<%= accountUser.id %>">
+                            <input type="hidden" name="vid" value="<%= vol.id %>">
+                            <input type="text" name="totp_setup" class="input-field" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{6,8}" placeholder="6 位动态码" required>
+                            <button type="submit" name="confirm_2fa" value="1" class="btn" style="background:#28a745; color:white;">确认开启</button>
+                        </form>
+                        <form method="POST" style="margin-top:8px;">
+                            <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                            <input type="hidden" name="uid" value="<%= accountUser.id %>">
+                            <input type="hidden" name="vid" value="<%= vol.id %>">
+                            <button type="submit" name="cancel_2fa_setup" value="1" class="btn" style="background:#6c757d; color:white;">取消</button>
+                        </form>
+                    <% } else { %>
+                        <p style="margin:0 0 12px; color:#64748b; font-size:13px;">未开启</p>
+                        <form method="POST">
+                            <input type="hidden" name="csrf_token" value="<%= csrf %>">
+                            <input type="hidden" name="uid" value="<%= accountUser.id %>">
+                            <input type="hidden" name="vid" value="<%= vol.id %>">
+                            <button type="submit" name="start_2fa" value="1" class="btn" style="background:#0056b3; color:white;">开启 2FA</button>
+                        </form>
+                    <% } %>
+                </div>
             <% } else { %>
                 <form method="POST" style="display:flex; flex-direction:column; gap:15px;">
                     <input type="hidden" name="csrf_token" value="<%= csrf %>">
@@ -280,7 +315,7 @@
                     <label>权限:</label>
                     <select name="role" class="input-field"><option value="user">普通队员</option><option value="admin">管理员</option></select>
                     <label>初始密码:</label><input type="password" name="password" required minlength="8" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}" title="须含大写字母、小写字母和数字，至少 8 位" class="input-field">
-                    <button type="submit" name="create_account" value="1" class="btn" style="background:#28a745; color:white; padding:12px;">开通账号</button>
+                    <button type="submit" name="create_account" value="1" class="btn js-reauth" style="background:#28a745; color:white; padding:12px;">开通账号</button>
                 </form>
             <% } %>
         </div>
@@ -398,7 +433,7 @@
                                     <button type="submit" name="lose_id_card" value="1" class="btn" style="background:#ffc107; color:#333;">挂失</button>
                                 </form>
                                 <% } %>
-                                <form method="POST" style="display:inline;" onsubmit="return confirm('确定删除此证件？绑定会解除。')">
+                                <form method="POST" style="display:inline;" class="js-reauth-form">
                                     <input type="hidden" name="csrf_token" value="<%= csrf %>">
                                     <input type="hidden" name="card_id" value="<%= c.id %>">
                                     <button type="submit" name="delete_id_card" value="1" class="btn" style="background:#dc3545; color:white;">删除</button>
@@ -471,5 +506,92 @@
         });
         </script>
     <% } %>
+    <div id="reauthModal" class="qr-modal">
+        <div class="qr-box" style="text-align:left; max-width:400px;">
+            <h3 style="margin:0 0 8px;">二次授权</h3>
+            <p id="reauthHint" style="font-size:13px; color:#64748b; margin:0 0 12px;"></p>
+            <label style="font-size:13px;">当前账号密码</label>
+            <input type="password" id="reauthPass" class="input-field" autocomplete="current-password">
+            <div id="reauthTotpWrap" style="display:none; margin-top:10px;">
+                <label style="font-size:13px;">动态验证码</label>
+                <input type="text" id="reauthTotp" class="input-field" inputmode="numeric" autocomplete="one-time-code" maxlength="8">
+            </div>
+            <p id="reauthErr" style="display:none; color:#dc3545; font-size:13px; margin:10px 0 0;"></p>
+            <div class="btn-group" style="margin-top:16px;">
+                <button type="button" class="btn" id="reauthCancel" style="background:#6c757d; color:#fff;">取消</button>
+                <button type="button" class="btn" id="reauthOk" style="background:#0056b3; color:#fff;">确认</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var has2fa = <%= (typeof actorHas2fa !== 'undefined' && actorHas2fa) ? 'true' : 'false' %>;
+        var pendingForm = null;
+        var modal = document.getElementById('reauthModal');
+        var passEl = document.getElementById('reauthPass');
+        var totpEl = document.getElementById('reauthTotp');
+        var totpWrap = document.getElementById('reauthTotpWrap');
+        var hint = document.getElementById('reauthHint');
+        var errEl = document.getElementById('reauthErr');
+        function openReauth(form) {
+            pendingForm = form;
+            errEl.style.display = 'none';
+            passEl.value = '';
+            totpEl.value = '';
+            totpWrap.style.display = has2fa ? 'block' : 'none';
+            hint.textContent = has2fa ? '需要密码和动态验证码。' : '需要输入当前账号密码。';
+            modal.classList.add('show');
+            passEl.focus();
+        }
+        function closeReauth() {
+            modal.classList.remove('show');
+            pendingForm = null;
+        }
+        function attach(form) {
+            form.addEventListener('submit', function (e) {
+                if (form.getAttribute('data-reauth-ok') === '1') return;
+                e.preventDefault();
+                openReauth(form);
+            });
+        }
+        document.querySelectorAll('form.js-reauth-form').forEach(attach);
+        document.querySelectorAll('button.js-reauth').forEach(function (btn) {
+            var form = btn.closest('form');
+            if (form && !form.classList.contains('js-reauth-form')) {
+                form.classList.add('js-reauth-form');
+                attach(form);
+            }
+        });
+        document.getElementById('reauthCancel').addEventListener('click', closeReauth);
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeReauth(); });
+        document.getElementById('reauthOk').addEventListener('click', function () {
+            if (!pendingForm) return;
+            if (!passEl.value) {
+                errEl.textContent = '请输入密码';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (has2fa && !totpEl.value) {
+                errEl.textContent = '请输入动态验证码';
+                errEl.style.display = 'block';
+                return;
+            }
+            function setHidden(name, value) {
+                var el = pendingForm.querySelector('input[name="' + name + '"]');
+                if (!el) {
+                    el = document.createElement('input');
+                    el.type = 'hidden';
+                    el.name = name;
+                    pendingForm.appendChild(el);
+                }
+                el.value = value;
+            }
+            setHidden('confirm_password', passEl.value);
+            if (has2fa) setHidden('confirm_totp', totpEl.value);
+            pendingForm.setAttribute('data-reauth-ok', '1');
+            pendingForm.submit();
+        });
+    })();
+    </script>
 </main>
 <%- include('partials/footer') %>

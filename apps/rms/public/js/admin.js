@@ -2128,8 +2128,9 @@ async function openPersonnelCertsModal(userId) {
             const dates = c.expiry_date
                 ? `签发 ${escapeHtml(formatCertDate(c.issue_date))} · 有效至 ${escapeHtml(formatCertDate(c.expiry_date))}`
                 : `签发 ${escapeHtml(formatCertDate(c.issue_date))}`;
-            const img = c.image_url
-                ? `<a href="/get_cert.php?file=${encodeURIComponent(c.image_url)}" target="_blank" rel="noopener" class="dc-soft-link text-xs font-semibold hover:underline">查看证书图</a>`
+            const img = c.image_src || '';
+            const imgHtml = img
+                ? `<a href="${escapeHtml(img)}" target="_blank" rel="noopener" class="dc-soft-link text-xs font-semibold hover:underline">查看证书图</a>`
                 : '<span class="text-xs" style="color:var(--rms-muted)">无附图</span>';
             return `
                 <div class="dc-inset-card p-3 flex justify-between items-start gap-3">
@@ -2140,7 +2141,7 @@ async function openPersonnelCertsModal(userId) {
                         </div>
                         <div class="text-[11px] mt-1" style="color:var(--rms-muted)">${dates}</div>
                     </div>
-                    <div class="shrink-0">${img}</div>
+                    <div class="shrink-0">${imgHtml}</div>
                 </div>
             `;
         }).join('');

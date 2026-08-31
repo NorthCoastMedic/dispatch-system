@@ -51,6 +51,9 @@
     }
 </style>
 <main style="flex: 1;" class="vp-page">
+    <% if (typeof closed !== 'undefined' && closed) { %>
+        <div class="search-miss" style="color:#445;">公开档案检索已关闭。</div>
+    <% } else { %>
     <div class="search-bar">
         <form method="GET" class="search-form">
             <input type="text" name="query" class="search-box" placeholder="请输入人员姓名或内部编号..." value="<%= q %>" required>
@@ -67,6 +70,7 @@
         <% } else { %>
             <div class="search-miss">未检索到符合条件的队员，请核对姓名或编号。</div>
         <% } %>
+    <% } %>
     <% } %>
 </main>
 <%- include('partials/footer') %>

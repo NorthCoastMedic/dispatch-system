@@ -354,6 +354,23 @@
             <p class="settings-hint"></p>
         </form>
     </div>
+    <div id="reauthModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+        <div style="background:#fff; border-radius:12px; padding:22px; max-width:400px; width:100%;">
+            <h3 style="margin:0 0 8px;">二次授权</h3>
+            <p id="reauthHint" style="font-size:13px; color:#64748b; margin:0 0 12px;"></p>
+            <label style="font-size:13px;">当前账号密码</label>
+            <input type="password" id="reauthPass" style="width:100%; box-sizing:border-box; padding:10px; margin:6px 0 10px; border:1px solid #ddd; border-radius:8px;">
+            <div id="reauthTotpWrap" style="display:none;">
+                <label style="font-size:13px;">动态验证码</label>
+                <input type="text" id="reauthTotp" inputmode="numeric" maxlength="8" autocomplete="one-time-code" style="width:100%; box-sizing:border-box; padding:10px; margin:6px 0 10px; border:1px solid #ddd; border-radius:8px;">
+            </div>
+            <p id="reauthErr" style="display:none; color:#dc3545; font-size:13px;"></p>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button type="button" id="reauthCancel" style="flex:1; padding:10px; border:none; border-radius:8px; background:#e2e8f0;">取消</button>
+                <button type="button" id="reauthOk" style="flex:1; padding:10px; border:none; border-radius:8px; background:#0056b3; color:#fff;">确认</button>
+            </div>
+        </div>
+    </div>
 </main>
 <script>
 (function () {
@@ -527,11 +544,65 @@
     bindNavEditor();
     renderNavEditor(DEFAULT_NAV && DEFAULT_NAV.length ? DEFAULT_NAV : FACTORY_DEFAULT_NAV);
 
+    var PAGE_CSRF = <%- JSON.stringify(typeof csrf !== 'undefined' ? csrf : '') %>;
+    var LOGS_CURRENT = <%- JSON.stringify((settings && settings.logs) || {}) %>;
+    var ACTOR_HAS_2FA = <%= (typeof actorHas2fa !== 'undefined' && actorHas2fa) ? 'true' : 'false' %>;
+
+    function logsChanged(settings) {
+        var bag = settings.logs || {};
+        var keys = Object.keys(LOGS_CURRENT);
+        if (!keys.length) keys = Object.keys(bag);
+        return keys.some(function (k) {
+            return String(LOGS_CURRENT[k] || '') !== String(bag[k] || '');
+        });
+    }
+
+    function askReauth() {
+        return new Promise(function (resolve, reject) {
+            var modal = document.getElementById('reauthModal');
+            var passEl = document.getElementById('reauthPass');
+            var totpEl = document.getElementById('reauthTotp');
+            var totpWrap = document.getElementById('reauthTotpWrap');
+            var hint = document.getElementById('reauthHint');
+            var errEl = document.getElementById('reauthErr');
+            passEl.value = '';
+            totpEl.value = '';
+            errEl.style.display = 'none';
+            totpWrap.style.display = ACTOR_HAS_2FA ? 'block' : 'none';
+            hint.textContent = ACTOR_HAS_2FA
+                ? '修改日志保留需密码和动态验证码，随后请到服务器终端确认。'
+                : '修改日志保留需输入当前账号密码，随后请到服务器终端确认。';
+            modal.style.display = 'flex';
+            passEl.focus();
+            function close(ok) {
+                modal.style.display = 'none';
+                document.getElementById('reauthOk').removeEventListener('click', onOk);
+                document.getElementById('reauthCancel').removeEventListener('click', onCancel);
+                if (ok) resolve({ password: passEl.value, totp: totpEl.value });
+                else reject(new Error('cancelled'));
+            }
+            function onCancel() { close(false); }
+            function onOk() {
+                if (!passEl.value) {
+                    errEl.textContent = '请输入密码';
+                    errEl.style.display = 'block';
+                    return;
+                }
+                if (ACTOR_HAS_2FA && !totpEl.value) {
+                    errEl.textContent = '请输入动态验证码';
+                    errEl.style.display = 'block';
+                    return;
+                }
+                close(true);
+            }
+            document.getElementById('reauthCancel').addEventListener('click', onCancel);
+            document.getElementById('reauthOk').addEventListener('click', onOk);
+        });
+    }
+
     form.addEventListener('submit', function (e) {
         e.preventDefault();
         syncNavHidden();
-        msg.textContent = '保存中…';
-        msg.className = 'settings-msg';
         var settings = {};
         form.querySelectorAll('input[data-cat][data-key], textarea[data-cat][data-key], select[data-cat][data-key]').forEach(function (input) {
             var cat = input.getAttribute('data-cat');
@@ -539,31 +610,49 @@
             if (!settings[cat]) settings[cat] = {};
             settings[cat][key] = input.value.trim();
         });
-        fetch('/api/system-settings', {
-            method: 'PUT',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ settings: settings })
-        })
-            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
-            .then(function (res) {
-                if (!res.ok || !res.data.success) {
-                    msg.textContent = (res.data && res.data.message) || '保存失败';
-                    msg.className = 'settings-msg err';
-                    return;
-                }
-                msg.textContent = res.data.message || '已保存';
-                msg.className = 'settings-msg ok';
-                try {
-                    if (res.data.settings && res.data.settings.nav && res.data.settings.nav.nav_items) {
-                        renderNavEditor(JSON.parse(res.data.settings.nav.nav_items));
-                    }
-                } catch (err) { /* ignore */ }
-            })
-            .catch(function () {
-                msg.textContent = '网络错误，请稍后重试';
+        var needLogsConfirm = logsChanged(settings);
+        var run = Promise.resolve(null);
+        if (needLogsConfirm) run = askReauth();
+        run.then(function (reauth) {
+            msg.textContent = needLogsConfirm ? '等待服务器终端确认（y/n 与确认码）…' : '保存中…';
+            msg.className = 'settings-msg';
+            var body = { settings: settings };
+            body.csrf_token = PAGE_CSRF;
+            if (reauth) {
+                body.confirm_password = reauth.password;
+                body.confirm_totp = reauth.totp;
+            }
+            return fetch('/api/system-settings', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                signal: AbortSignal.timeout ? AbortSignal.timeout(360000) : undefined
+            }).then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); });
+        }).then(function (res) {
+            if (!res) return;
+            if (!res.ok || !res.data.success) {
+                msg.textContent = (res.data && res.data.message) || '保存失败';
                 msg.className = 'settings-msg err';
-            });
+                return;
+            }
+            msg.textContent = res.data.message || '已保存';
+            msg.className = 'settings-msg ok';
+            if (res.data.settings && res.data.settings.logs) LOGS_CURRENT = res.data.settings.logs;
+            try {
+                if (res.data.settings && res.data.settings.nav && res.data.settings.nav.nav_items) {
+                    renderNavEditor(JSON.parse(res.data.settings.nav.nav_items));
+                }
+            } catch (err) { /* ignore */ }
+        }).catch(function (err) {
+            if (err && err.message === 'cancelled') {
+                msg.textContent = '已取消';
+                msg.className = 'settings-msg';
+                return;
+            }
+            msg.textContent = '网络错误或等待超时';
+            msg.className = 'settings-msg err';
+        });
     });
 })();
 </script>

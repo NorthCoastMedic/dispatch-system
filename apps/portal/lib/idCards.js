@@ -2,6 +2,7 @@
  * 实体证件卡：与 volunteers.id_card_no 同步。
  * 一人一卡；挂失保留绑定；可改回未绑定（不必另选一张卡）。
  */
+const crypto = require('crypto');
 const { pool } = require('./db');
 
 class IdCardError extends Error {
@@ -29,6 +30,48 @@ function parseVolunteerId(raw) {
     const n = parseInt(raw, 10);
     if (!n) return null;
     return n;
+}
+
+function newScanToken() {
+    return crypto.randomBytes(16).toString('hex');
+}
+
+let tokenReady = null;
+
+async function ensureScanTokens() {
+    if (tokenReady) return tokenReady;
+    tokenReady = (async () => {
+        const [cols] = await pool.query("SHOW COLUMNS FROM id_cards LIKE 'scan_token'");
+        if (!cols.length) {
+            await pool.query(
+                'ALTER TABLE id_cards ADD COLUMN scan_token CHAR(32) NULL AFTER card_no'
+            );
+        }
+        const [idx] = await pool.query("SHOW INDEX FROM id_cards WHERE Key_name = 'uk_id_cards_token'");
+        if (!idx.length) {
+            await pool.query('ALTER TABLE id_cards ADD UNIQUE KEY uk_id_cards_token (scan_token)');
+        }
+        const [missing] = await pool.query(
+            "SELECT id FROM id_cards WHERE scan_token IS NULL OR scan_token = ''"
+        );
+        for (const row of missing) {
+            for (let i = 0; i < 6; i++) {
+                try {
+                    await pool.query(
+                        'UPDATE id_cards SET scan_token = ? WHERE id = ? AND (scan_token IS NULL OR scan_token = \'\')',
+                        [newScanToken(), row.id]
+                    );
+                    break;
+                } catch (err) {
+                    if (!err || err.code !== 'ER_DUP_ENTRY') throw err;
+                }
+            }
+        }
+    })().catch((err) => {
+        tokenReady = null;
+        throw err;
+    });
+    return tokenReady;
 }
 
 async function withTx(fn) {
@@ -122,16 +165,25 @@ async function applyBinding(conn, card, volunteerId) {
 }
 
 async function createCard({ cardNo, note, volunteerId }) {
+    await ensureScanTokens();
     const no = normalizeCardNo(cardNo);
     const noteVal = normalizeNote(note);
     const vid = parseVolunteerId(volunteerId);
     return withTx(async (conn) => {
         const [dup] = await conn.query('SELECT id FROM id_cards WHERE card_no=?', [no]);
         if (dup.length) throw new IdCardError('证件号已存在。');
-        const [ins] = await conn.query(
-            "INSERT INTO id_cards (card_no, note, volunteer_id, status) VALUES (?, ?, NULL, 'unbound')",
-            [no, noteVal]
-        );
+        let ins;
+        for (let i = 0; i < 6; i++) {
+            try {
+                [ins] = await conn.query(
+                    "INSERT INTO id_cards (card_no, scan_token, note, volunteer_id, status) VALUES (?, ?, ?, NULL, 'unbound')",
+                    [no, newScanToken(), noteVal]
+                );
+                break;
+            } catch (err) {
+                if (!err || err.code !== 'ER_DUP_ENTRY' || i === 5) throw err;
+            }
+        }
         const card = await loadCard(conn, ins.insertId);
         await applyBinding(conn, card, vid);
         return ins.insertId;
@@ -178,8 +230,9 @@ async function deleteCard(id) {
 }
 
 async function listCards() {
+    await ensureScanTokens();
     const [rows] = await pool.query(
-        `SELECT c.id, c.card_no, c.note, c.volunteer_id, c.status, c.created_at, c.updated_at,
+        `SELECT c.id, c.card_no, c.scan_token, c.note, c.volunteer_id, c.status, c.created_at, c.updated_at,
                 v.name AS volunteer_name, v.badge_number AS volunteer_badge
          FROM id_cards c
          LEFT JOIN volunteers v ON v.id = c.volunteer_id
@@ -188,19 +241,19 @@ async function listCards() {
     return rows;
 }
 
-async function getByCardNo(cardNo) {
-    const no = String(cardNo == null ? '' : cardNo).trim();
-    if (!no) return null;
-    const [rows] = await pool.query(
-        `SELECT c.id, c.card_no, c.note, c.volunteer_id, c.status,
+const CARD_LOOKUP_SQL = `SELECT c.id, c.card_no, c.scan_token, c.note, c.volunteer_id, c.status,
                 v.id AS vol_id, v.name, v.badge_number, v.blood_type, v.join_date, v.status AS vol_status, v.avatar_url
          FROM id_cards c
-         LEFT JOIN volunteers v ON v.id = c.volunteer_id
-         WHERE c.card_no = ?
-         LIMIT 1`,
-        [no]
-    );
-    return rows[0] || null;
+         LEFT JOIN volunteers v ON v.id = c.volunteer_id`;
+
+async function getByCardNo(cardNo) {
+    await ensureScanTokens();
+    const no = String(cardNo == null ? '' : cardNo).trim();
+    if (!no || no.length > 64) return null;
+    const [byToken] = await pool.query(CARD_LOOKUP_SQL + ' WHERE c.scan_token = ? LIMIT 1', [no]);
+    if (byToken[0]) return byToken[0];
+    const [byNo] = await pool.query(CARD_LOOKUP_SQL + ' WHERE c.card_no = ? LIMIT 1', [no]);
+    return byNo[0] || null;
 }
 
 async function unbindCardsOfDeletedVolunteer(volunteerId) {
@@ -220,5 +273,6 @@ module.exports = {
     deleteCard,
     listCards,
     getByCardNo,
+    ensureScanTokens,
     unbindCardsOfDeletedVolunteer
 };

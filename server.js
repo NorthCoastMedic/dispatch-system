@@ -77,16 +77,22 @@ async function startFull() {
     const { Server } = require('socket.io');
     const { ensureUnifiedSession, requireUnifiedLogin } = require('./apps/_shared/session');
     const {
-        loadSettings, saveSettings, getCategoryDefs, ensureReady, redactSettingsForClient
+        loadSettings, saveSettings, getCategoryDefs, ensureReady, redactSettingsForClient, detectLogsRetentionChange
     } = require('./apps/_shared/systemSettings');
     const authTokens = require('./apps/_shared/authTokens');
+    const mediaToken = require('./apps/_shared/mediaToken');
     const rateLimit = require('./apps/_shared/rateLimit');
+    const authSecurity = require('./apps/_shared/authSecurity');
+    const { verifyPassword, verifyCsrf } = require('./apps/portal/lib/helpers');
+    const { confirmLogRetentionChange } = require('./apps/_shared/terminalConfirm');
     const { getOrgPool, ensureSessionTables } = require('./apps/_shared/orgDb');
     const MysqlSessionStore = require('./apps/_shared/mysqlSessionStore');
     const { createApp: createPortal } = require('./apps/portal');
     const { createApp: createRms } = require('./apps/rms');
     const { createApp: createRtls } = require('./apps/rtls');
     const { createApp: createWbgt } = require('./apps/wbgt');
+    const { ensureOrgLogTables } = require('./apps/portal/lib/orgLog');
+    const { ensureRmsLogTables } = require('./apps/rms/lib/dispatchLog');
 
     const rootEnv = loadLocalEnv(__dirname);
     const PORT = Number(envGet(rootEnv, 'PORT', '12000')) || 12000;
@@ -94,6 +100,7 @@ async function startFull() {
     const TRUST_PROXY = envGet(rootEnv, 'TRUST_PROXY', '0') === '1';
     const ACCESS_TTL_SEC = Number(envGet(rootEnv, 'TOKEN_ACCESS_TTL_SEC', '900')) || 900;
     const REFRESH_TTL_SEC = Number(envGet(rootEnv, 'TOKEN_REFRESH_TTL_SEC', '86400')) || 86400;
+    const CERT_URL_TTL_SEC = Number(envGet(rootEnv, 'CERT_URL_TTL_SEC', '1800')) || 1800;
 
     if (!isUsableSessionSecret(SESSION_SECRET)) {
         console.error('[安全] 未配置强随机 SESSION_SECRET，拒绝启动。');
@@ -104,6 +111,11 @@ async function startFull() {
 
     const orgPool = getOrgPool();
     await ensureSessionTables(orgPool);
+    authSecurity.configure({ trustProxy: TRUST_PROXY, pool: orgPool });
+    await authSecurity.ensureSchema(orgPool);
+    await ensureOrgLogTables(orgPool);
+    await ensureRmsLogTables(orgPool);
+    authSecurity.startPurgeLoop();
 
     authTokens.configure({
         secret: SESSION_SECRET,
@@ -113,6 +125,7 @@ async function startFull() {
         pool: orgPool
     });
     await authTokens.hydrateRefreshStore();
+    mediaToken.configure({ secret: SESSION_SECRET, ttlSec: CERT_URL_TTL_SEC });
     rateLimit.configure({ trustProxy: TRUST_PROXY });
 
     const app = express();
@@ -150,11 +163,34 @@ async function startFull() {
 
     app.use('/platform', express.static(path.join(__dirname, 'apps', '_shared', 'public')));
 
-    app.get('/api/session', (req, res) => {
+    app.get('/api/session', async (req, res) => {
         const user = ensureUnifiedSession(req);
         if (!user) return res.json({ success: false });
         const meta = authTokens.tokenMeta(req.auth, req.authRefresh);
-        res.json({ success: true, user, auth: meta });
+        res.json({ success: true, user, auth: meta, totp_enabled: await authSecurity.userHas2fa(user.id) });
+    });
+
+    app.get('/api/reauth', async (req, res) => {
+        const user = ensureUnifiedSession(req);
+        if (!user) return res.status(401).json({ success: false });
+        res.json({
+            success: true,
+            totp: await authSecurity.userHas2fa(user.id),
+            fresh: authSecurity.hasFreshReauth(req)
+        });
+    });
+
+    app.post('/api/reauth', express.json(), async (req, res) => {
+        const user = ensureUnifiedSession(req);
+        if (!user) return res.status(401).json({ success: false, message: '未登录' });
+        try {
+            const result = await authSecurity.verifyReauth(req, req.body || {}, verifyPassword);
+            if (!result.ok) return res.status(403).json({ success: false, message: result.error });
+            res.json({ success: true });
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ success: false, message: '二次授权失败' });
+        }
     });
 
     app.post('/api/auth/refresh', express.json(), (req, res) => {
@@ -190,13 +226,34 @@ async function startFull() {
         if (user.role !== 'admin') {
             return res.status(403).json({ success: false, message: '需要管理员权限' });
         }
+        if (!verifyCsrf(req)) {
+            return res.status(403).json({ success: false, message: 'CSRF 校验失败，请刷新页面后重试。' });
+        }
         try {
+            const incoming = req.body && req.body.settings ? req.body.settings : req.body;
+            const logChange = await detectLogsRetentionChange(incoming);
+            if (logChange.changed) {
+                const re = await authSecurity.verifyReauth(req, req.body || {}, verifyPassword, { force: true });
+                if (!re.ok) {
+                    return res.status(403).json({ success: false, message: re.error || '二次授权失败', need_reauth: true });
+                }
+                req.socket && req.socket.setTimeout && req.socket.setTimeout(6 * 60 * 1000);
+                const summary = logChange.diffs.map((d) => d.label + ': ' + d.before + '→' + d.after).join('；');
+                const term = await confirmLogRetentionChange({
+                    actor: user.username,
+                    summary
+                });
+                if (!term.ok) {
+                    return res.status(409).json({ success: false, message: term.error || '服务器终端未确认' });
+                }
+            }
             const xf = req.headers['x-forwarded-for'] || req.headers['x-real-ip'];
             const ip = xf ? String(xf).split(',')[0].trim() : (req.socket && req.socket.remoteAddress) || null;
-            const result = await saveSettings(
-                req.body && req.body.settings ? req.body.settings : req.body,
-                { actorUserId: user.id, actorUsername: user.username, ip }
-            );
+            const result = await saveSettings(incoming, {
+                actorUserId: user.id,
+                actorUsername: user.username,
+                ip
+            });
             if (!result.ok) {
                 return res.status(400).json({
                     success: false,
@@ -205,7 +262,14 @@ async function startFull() {
                     settings: result.settings
                 });
             }
-            res.json({ success: true, settings: result.settings, message: '系统设置已保存' });
+            if (logChange.changed) {
+                authSecurity.purgeExpiredLogs().catch(() => {});
+            }
+            res.json({
+                success: true,
+                settings: result.settings,
+                message: logChange.changed ? '系统设置已保存（日志保留已由终端确认）' : '系统设置已保存'
+            });
         } catch (err) {
             res.status(500).json({ success: false, message: '保存系统设置失败' });
         }
