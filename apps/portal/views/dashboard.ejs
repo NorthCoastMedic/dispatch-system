@@ -1,0 +1,43 @@
+<%- include('partials/header') %>
+<style>
+    .dash-container { max-width: 900px; margin: 50px auto; padding: 0 20px; }
+    .dash-header { background: linear-gradient(135deg, var(--primary-color, #0056b3), var(--pt-accent-2, #007bff)); color: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 20px var(--pt-shadow, rgba(0,0,0,0.1)); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+    .dash-header h2 { margin: 0; font-size: 24px; }
+    .logout-btn { color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 14px; transition: background 0.3s; border: 0; cursor: pointer; font-family: inherit; }
+    .logout-btn:hover { background: rgba(255,255,255,0.3); }
+    .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
+    .nav-card { position: relative; background: var(--white, #fff); padding: 30px; border-radius: 12px; text-align: center; text-decoration: none; color: var(--text-dark, #333); box-shadow: 0 4px 15px var(--pt-shadow, rgba(0,0,0,0.05)); transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--pt-border, #eee); }
+    .nav-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px var(--pt-shadow, rgba(0,0,0,0.1)); }
+    .nav-card:active { transform: scale(0.98); }
+    .nav-icon { font-size: 40px; margin-bottom: 15px; }
+    .nav-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: var(--pt-accent, #0056b3); }
+    .nav-desc { font-size: 13px; color: var(--pt-muted, #777); line-height: 1.5; }
+    .admin-badge { background: #dc3545; color: white; font-size: 12px; padding: 3px 8px; border-radius: 12px; vertical-align: middle; margin-left: 10px; }
+</style>
+<main>
+    <div class="dash-container">
+        <div class="dash-header">
+            <div>
+                <h2>导航页 <% if (user.role === 'admin') { %><span class="admin-badge">管理员</span><% } %></h2>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;"><%= welcomeName ? welcomeName + '，欢迎回来。' : '欢迎回来。' %></p>
+            </div>
+            <form method="POST" action="logout.php" style="margin:0;">
+                <button type="submit" class="logout-btn">退出</button>
+            </form>
+        </div>
+        <div class="nav-grid">
+            <% (navItems || []).forEach(function (item) {
+                if (!item || item.enabled === false) return;
+                if (item.admin_only && user.role !== 'admin') return;
+                var style = item.accent ? ('border-bottom: 4px solid ' + item.accent + ';') : '';
+            %>
+            <a href="<%= item.href %>" class="nav-card"<% if (item.target === '_blank') { %> target="_blank" rel="noopener noreferrer"<% } %><% if (style) { %> style="<%= style %>"<% } %>>
+                <div class="nav-icon"><%= item.icon || '' %></div>
+                <div class="nav-title"><%= item.title %></div>
+                <div class="nav-desc"><%= item.desc || '' %></div>
+            </a>
+            <% }) %>
+        </div>
+    </div>
+</main>
+<%- include('partials/footer') %>

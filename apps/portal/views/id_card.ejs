@@ -1,0 +1,40 @@
+<%- include('partials/header') %>
+<style>
+    body { background-color: #d9e4f4; }
+    .status-card { max-width: 520px; margin: 40px auto 16px; background: #fff; border: 1px solid #b7c8e0; padding: 0; text-align: center; }
+    .status-card h2 { margin: 0; padding: 16px; background: #0b2d6b; color: #fff; font-size: 20px; }
+    .status-lost h2 { background: #8b1e1e; }
+    .status-body { padding: 28px 22px; }
+    .card-no { font-size: 22px; font-weight: 700; letter-spacing: 1px; margin: 0 0 12px; color: #0b2d6b; }
+    .found-wrap { max-width: 520px; margin: 0 auto 48px; padding: 8px 16px 0; text-align: center; }
+    .found-btn { display: inline-block; background: #fff; color: #0b2d6b; border: 2px solid #0b2d6b; padding: 12px 22px; text-decoration: none; font-weight: 700; }
+    .found-btn:hover { background: #0b2d6b; color: #fff; }
+    .found-hint { margin: 10px 0 0; font-size: 13px; color: #556; line-height: 1.5; }
+    @media (max-width: 640px) {
+        .status-card { margin: 16px 12px; }
+        .found-btn { display: block; }
+    }
+</style>
+<main style="flex: 1;">
+    <div class="status-card <%= view === 'lost' ? 'status-lost' : '' %>">
+        <h2>
+            <% if (view === 'lost') { %>证件已挂失
+            <% } else if (view === 'unbound') { %>证件未绑定
+            <% } else { %>证件查询
+            <% } %>
+        </h2>
+        <div class="status-body">
+            <% if (cardNo) { %>
+            <div class="card-no"><%= cardNo %></div>
+            <% } %>
+            <p style="color:#445; line-height:1.6; margin:0;"><%= message %></p>
+        </div>
+    </div>
+    <% if (typeof foundLink !== 'undefined' && foundLink) { %>
+        <div class="found-wrap">
+            <a class="found-btn" href="<%= foundLink.url %>" target="_blank" rel="noopener noreferrer"><%= foundLink.label %></a>
+            <p class="found-hint">若您捡到此证，请点此登记，便于归还。</p>
+        </div>
+    <% } %>
+</main>
+<%- include('partials/footer') %>

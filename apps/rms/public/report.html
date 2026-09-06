@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>事件上报</title>
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#f4f7f6] min-h-screen">
+    <header class="bg-[#0056b3] text-white shadow">
+        <div class="max-w-lg mx-auto px-4 py-4">
+            <h1 class="text-lg font-bold">事件快速上报</h1>
+            <p class="text-xs text-blue-100 mt-1">填写后将即时通知调度指挥中心</p>
+        </div>
+    </header>
+
+    <main class="max-w-lg mx-auto px-4 py-6">
+        <div id="report-closed" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-5 text-sm">
+            当前未开放公开上报。
+        </div>
+        <form id="report-form" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-2">求助类型 <span class="text-red-500">*</span></label>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                        <input type="radio" name="report_type" value="医疗事件求助" required class="accent-[#0056b3]">
+                        <span class="text-sm font-semibold text-gray-800">医疗事件求助</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                        <input type="radio" name="report_type" value="安全问题求助" class="accent-[#0056b3]">
+                        <span class="text-sm font-semibold text-gray-800">安全问题求助</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                        <input type="radio" name="report_type" value="其他问题求助" class="accent-[#0056b3]">
+                        <span class="text-sm font-semibold text-gray-800">其他问题求助</span>
+                    </label>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">事件地点 <span class="text-red-500">*</span></label>
+                <input id="title" type="text" required maxlength="80" 
+                    class="w-full p-3 border rounded-xl text-sm outline-none focus:border-[#0056b3]">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">联系方式 <span class="text-red-500">*</span></label>
+                <input id="contact" type="text" required maxlength="80" 
+                    class="w-full p-3 border rounded-xl text-sm outline-none focus:border-[#0056b3]">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">详细情况 <span class="text-red-500">*</span></label>
+                <textarea id="details" required rows="5" maxlength="1000" placeholder="伤情、人数、现场情况等…"
+                    class="w-full p-3 border rounded-xl text-sm outline-none focus:border-[#0056b3] resize-none"></textarea>
+            </div>
+            <div id="msg" class="hidden text-sm rounded-xl px-3 py-2"></div>
+            <button type="submit" id="btn-submit"
+                class="w-full py-3 bg-[#0056b3] hover:bg-[#004494] text-white font-bold rounded-xl shadow transition">
+                提交上报
+            </button>
+        </form>
+        <p class="text-center text-xs text-gray-400 mt-4">提交后调度员将收到弹窗提醒</p>
+    </main>
+
+    <footer class="unified-site-footer max-w-lg mx-auto px-4 mt-8 pt-5 pb-6 text-center text-xs text-gray-400 border-t border-gray-200">
+        <p class="m-0" data-brand="footer_copyright">页脚版权行</p>
+        <p class="m-0 mt-1 text-[11px]" data-brand="footer_motto">页脚标语</p>
+    </footer>
+
+    <script src="/platform/branding.js?v=20260813a"></script>
+    <script>
+    const reportToken = new URLSearchParams(location.search).get('token') || '';
+
+    async function loadReportStatus() {
+        const urls = ['/api/public-report-status', '/rms/api/public-report-status'];
+        for (const url of urls) {
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) continue;
+                const data = await res.json();
+                if (data && data.success) return data;
+            } catch (_) { /* try next */ }
+        }
+        return { success: true, enabled: true, token_required: false };
+    }
+
+    async function submitReport({ report_type, title, contact, details, force }) {
+        const payload = { report_type, title, contact, details, force: !!force };
+        if (reportToken) payload.token = reportToken;
+        const res = await fetch('/rms/api/public-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        return { res, data };
+    }
+
+    function selectedReportType() {
+        const el = document.querySelector('input[name="report_type"]:checked');
+        return el ? el.value : '';
+    }
+
+    (async () => {
+        const status = await loadReportStatus();
+        const form = document.getElementById('report-form');
+        const closed = document.getElementById('report-closed');
+        if (!status.enabled) {
+            form.classList.add('hidden');
+            closed.classList.remove('hidden');
+            return;
+        }
+        if (status.token_required && !reportToken) {
+            form.classList.add('hidden');
+            closed.textContent = '需要上报凭证。请使用指挥下发的带 token 的链接打开本页。';
+            closed.classList.remove('hidden');
+        }
+    })();
+
+    document.getElementById('report-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit');
+        const msg = document.getElementById('msg');
+        const report_type = selectedReportType();
+        const title = document.getElementById('title').value.trim();
+        const contact = document.getElementById('contact').value.trim();
+        const details = document.getElementById('details').value.trim();
+
+        if (!report_type) {
+            msg.className = 'text-sm rounded-xl px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200';
+            msg.textContent = '请先选择求助类型';
+            msg.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = '提交中…';
+        msg.classList.add('hidden');
+
+        try {
+            let { res, data } = await submitReport({ report_type, title, contact, details, force: false });
+
+            if (data.duplicate) {
+                const ok = confirm((data.message || '检测到可能重复的上报') + '\n\n确定仍要提交吗？');
+                if (!ok) {
+                    msg.className = 'text-sm rounded-xl px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200';
+                    msg.textContent = '已取消提交（可能与已有事件重复）';
+                    msg.classList.remove('hidden');
+                    return;
+                }
+                ({ res, data } = await submitReport({ report_type, title, contact, details, force: true }));
+            }
+
+            if (!data.success) throw new Error(data.message || '提交失败');
+
+            msg.className = 'text-sm rounded-xl px-3 py-2 bg-green-50 text-green-700 border border-green-200';
+            msg.textContent = '已提交，调度中心已收到通知。';
+            msg.classList.remove('hidden');
+            e.target.reset();
+        } catch (err) {
+            msg.className = 'text-sm rounded-xl px-3 py-2 bg-red-50 text-red-700 border border-red-200';
+            msg.textContent = '✖ ' + (err.message || '网络异常');
+            msg.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '提交上报';
+        }
+    });
+    </script>
+</body>
+</html>

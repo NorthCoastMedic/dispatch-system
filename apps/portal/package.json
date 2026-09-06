@@ -1,0 +1,7 @@
+{
+  "name": "beian-portal",
+  "version": "1.0.0",
+  "description": "portal module",
+  "main": "index.js",
+  "private": true
+}

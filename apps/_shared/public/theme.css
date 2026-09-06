@@ -1,0 +1,118 @@
+/**
+ * 平台统一主题令牌 + 切换按钮
+ * 与 RMS 同一套亮/暗语义：暗色≈指挥台，亮色≈监视屏
+ * html[data-theme=light|dark]
+ */
+
+html.platform-themed,
+html[data-theme] {
+    color-scheme: light;
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+/* ---- 共享令牌：亮色 ---- */
+html[data-theme="light"] {
+    --pt-bg: #f4f6f9;
+    --pt-bg-2: #eef3f8;
+    --pt-panel: #ffffff;
+    --pt-panel-2: #f8fafc;
+    --pt-header: #0056b3;
+    --pt-header-2: #004494;
+    --pt-border: #e2e8f0;
+    --pt-border-soft: #cbd5e1;
+    --pt-text: #1e293b;
+    --pt-text-2: #334155;
+    --pt-muted: #64748b;
+    --pt-accent: #0056b3;
+    --pt-accent-2: #0a6fd4;
+    --pt-danger: #dc2626;
+    --pt-input-bg: #ffffff;
+    --pt-hover: #f1f5f9;
+    --pt-shadow: rgba(15, 23, 42, 0.08);
+    --pt-toolbar-bg: rgba(255, 255, 255, 0.14);
+    --pt-toolbar-border: rgba(255, 255, 255, 0.28);
+    --pt-toolbar-text: #ffffff;
+    --pt-nav-active-bg: #ffffff;
+    --pt-nav-active-fg: #0056b3;
+}
+
+/* ---- 共享令牌：暗色 ---- */
+html[data-theme="dark"] {
+    --pt-bg: #1a2332;
+    --pt-bg-2: #141c28;
+    --pt-panel: #1c2738;
+    --pt-panel-2: #202c40;
+    --pt-header: #0d3a6e;
+    --pt-header-2: #0a2f5a;
+    --pt-border: #3d4f66;
+    --pt-border-soft: #334155;
+    --pt-text: #e8eef6;
+    --pt-text-2: #b8c7da;
+    --pt-muted: #8fa3bc;
+    --pt-accent: #1270c4;
+    --pt-accent-2: #1584e0;
+    --pt-danger: #f87171;
+    --pt-input-bg: #141c28;
+    --pt-hover: #243044;
+    --pt-shadow: rgba(0, 0, 0, 0.35);
+    --pt-toolbar-bg: rgba(255, 255, 255, 0.08);
+    --pt-toolbar-border: rgba(255, 255, 255, 0.18);
+    --pt-toolbar-text: #f3f7fc;
+    --pt-nav-active-bg: #ffffff;
+    --pt-nav-active-fg: #0d3a6e;
+}
+
+/* ---- 主题切换按钮（与 RMS 同款） ---- */
+.rms-theme-toggle-wrap {
+    display: inline-flex;
+    align-items: center;
+}
+.rms-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid var(--pt-toolbar-border, rgba(255,255,255,0.25));
+    background: var(--pt-toolbar-bg, rgba(255,255,255,0.1));
+    color: var(--pt-toolbar-text, #fff);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1;
+    box-sizing: border-box;
+}
+.rms-theme-toggle:hover {
+    filter: brightness(1.08);
+}
+.rms-theme-toggle-ico {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    background: currentColor;
+    opacity: 0.85;
+    box-shadow: inset -0.28rem 0 0 0 var(--pt-header, #0056b3);
+}
+html[data-theme="light"] .rms-theme-toggle-ico {
+    background: transparent;
+    box-shadow: inset -0.28rem 0 0 0 currentColor;
+}
+
+/* 顶栏内切换钮与导航按钮对齐 */
+.top-nav .rms-theme-toggle,
+.nav-links .rms-theme-toggle,
+.header-right .rms-theme-toggle {
+    min-height: 2rem;
+    border-radius: 16px;
+    font-size: 12px;
+}
+.site-header .rms-theme-toggle {
+    min-height: 2rem;
+    border-radius: 16px;
+}

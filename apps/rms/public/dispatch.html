@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme-default="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调度指挥中心</title>
+    <script>
+    (function () {
+        var k = 'rms_theme';
+        var d = document.documentElement.getAttribute('data-theme-default') || 'dark';
+        try {
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark') ? t : d);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', d);
+        }
+        document.documentElement.classList.add('rms-themed');
+    })();
+    </script>
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <link rel="stylesheet" href="/platform/topnav.css?v=20260814c">
+    <script src="/platform/topnav.js?v=20260814c" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css?v=20260814u">
+    <link rel="stylesheet" href="css/theme.css?v=20260814z">
+    <script src="js/theme.js?v=20260814g" defer></script>
+</head>
+<body class="dispatch-console">
+
+    <div class="dc-shell">
+    <header class="dc-header sticky top-0 z-30">
+        <div class="w-full px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2 justify-between">
+            <div class="flex items-center gap-4 min-w-0">
+                <div class="min-w-0">
+                    <h1 class="font-bold text-sm sm:text-base tracking-wide truncate">调度指挥台</h1>
+                    <div id="header-clock" class="text-[11px] text-blue-200/80 font-mono leading-tight">2026-07-28 --:--:--</div>
+                </div>
+                <div class="flex items-stretch">
+                    <div class="dc-stat">
+                        <span class="dc-stat-label">在线</span>
+                        <span id="stat-online-users" class="dc-stat-value">0</span>
+                    </div>
+                    <div class="dc-stat is-standby">
+                        <span class="dc-stat-label">待命</span>
+                        <span id="stat-available-users" class="dc-stat-value">0</span>
+                    </div>
+                    <div class="dc-stat is-events">
+                        <span class="dc-stat-label">进行中</span>
+                        <span id="stat-active-events" class="dc-stat-value">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap justify-end">
+                <a href="report.html" target="_blank" class="dc-toolbar-btn" title="旁观者上报入口">上报入口</a>
+                <button id="btn-admin-add-event" type="button" class="dc-toolbar-btn is-primary">新增事件</button>
+                <button id="btn-batch-assign" type="button" class="dc-toolbar-btn" title="将多名队员指派到同一事件">批量指派</button>
+                <button id="btn-broadcast" type="button" class="dc-toolbar-btn" title="向全体或指定分区发送通知">广播</button>
+                <button id="btn-export-activity-summary" type="button" class="dc-toolbar-btn" title="导出本场事件汇总PDF">导出本场汇总</button>
+                <div data-rms-theme-slot class="rms-theme-toggle-wrap"></div>
+                <div class="relative ml-1">
+                    <button id="username-btn" class="dc-toolbar-btn flex items-center gap-1">
+                        <span id="header-username">管理员</span>
+                        <svg class="w-3.5 h-3.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="user-dropdown" data-ptn="rms" class="hidden absolute right-0 mt-2 w-52 rounded shadow-2xl border z-40 overflow-hidden">
+                        <button id="logout-btn" class="w-full text-left px-4 py-2.5 text-sm font-medium">
+                            退出登录
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="dc-main">
+            <section class="dc-panel">
+                <div class="dc-panel-hd">
+                    <h2>人员状态</h2>
+                </div>
+                <div id="personnel-agency-filters" class="flex flex-wrap gap-1.5">
+                    <button type="button" data-agency="" class="agency-filter-btn px-2.5 py-1 text-xs font-bold bg-[#0056b3] text-white">全部</button>
+                </div>
+                <div id="personnel-list" class="dc-panel-bd space-y-1.5"></div>
+            </section>
+
+            <div class="dc-events-col min-h-0">
+                <section class="dc-panel min-h-0">
+                    <div class="dc-panel-hd">
+                        <h2>进行中事件</h2>
+                    </div>
+                    <div id="admin-events-list" class="dc-panel-bd space-y-1.5"></div>
+                </section>
+
+                <section class="dc-panel min-h-0">
+                    <div class="dc-panel-hd">
+                        <h2>已完成事件</h2>
+                        <span class="dc-hint">可撤销完成</span>
+                    </div>
+                    <div id="admin-completed-events-list" class="dc-panel-bd space-y-1.5"></div>
+                </section>
+            </div>
+    </main>
+
+    <footer class="unified-site-footer dc-footer text-center">
+        <p class="m-0" data-brand="footer_copyright">页脚版权行</p>
+        <p class="m-0 mt-0.5 text-[10px] opacity-80" data-brand="footer_motto">页脚标语</p>
+    </footer>
+    </div>
+
+    <!-- 事件详情抽屉 -->
+    <div id="drawer-event-detail" class="fixed inset-0 z-[55] hidden" aria-hidden="true">
+        <div id="drawer-event-backdrop" class="absolute inset-0 bg-black/40"></div>
+        <aside class="dc-drawer absolute right-0 top-0 h-full w-full max-w-md flex flex-col">
+            <div class="flex items-start justify-between gap-3 px-5 py-4 border-b border-[#164a7c] bg-[#0d3a6e] text-white">
+                <div class="min-w-0">
+                    <div class="text-xs text-blue-100 font-semibold tracking-wide">事件详情</div>
+                    <h3 id="ed-title" class="text-base font-bold mt-0.5 truncate">—</h3>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" id="btn-toggle-event-lock" class="hidden px-2.5 py-1 border border-white/25 bg-white/10 hover:bg-white/20 text-sm font-bold">解锁</button>
+                    <button type="button" id="btn-close-event-drawer" class="px-2 py-1 border border-white/25 bg-white/10 hover:bg-white/20 text-sm font-bold">关闭</button>
+                </div>
+            </div>
+            <div id="ed-body" class="flex-1 overflow-y-auto px-5 py-4 space-y-5 text-sm">
+                <div class="text-center text-gray-400 py-10">加载中…</div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 弹窗部分保持不变 -->
+    <div id="modal-admin-add-event" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">调度中心发布事件</h3>
+            <form id="form-admin-add-event" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-2">求助类型 <span class="text-red-500">*</span></label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                            <input type="radio" name="admin_report_type" value="医疗事件求助" required class="accent-[#0056b3]">
+                            <span class="text-sm font-semibold text-gray-800">医疗事件求助</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                            <input type="radio" name="admin_report_type" value="安全问题求助" class="accent-[#0056b3]">
+                            <span class="text-sm font-semibold text-gray-800">安全问题求助</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                            <input type="radio" name="admin_report_type" value="其他问题求助" class="accent-[#0056b3]">
+                            <span class="text-sm font-semibold text-gray-800">其他问题求助</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">事件地点</label>
+                    <input type="text" id="admin-event-title" required class="w-full p-2.5 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">联系方式</label>
+                    <input type="text" id="admin-event-contact" required placeholder="如：10000000000" class="w-full p-2.5 border rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">详细情况</label>
+                    <textarea id="admin-event-details" required rows="3" placeholder="伤情、人数、现场情况等…" class="w-full p-2.5 border rounded-lg text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">优先级</label>
+                    <select id="admin-event-priority" class="w-full p-2.5 border rounded-lg text-sm">
+                        <option value="1">高优先级</option>
+                        <option value="2">中优先级</option>
+                        <option value="3" selected>低优先级</option>
+                    </select>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" id="btn-close-admin-add-modal" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">取消</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-[#0056b3] hover:bg-[#004494] text-white font-semibold rounded-xl text-sm shadow">发布事件</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-admin-assign" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">指派事件给队员</h3>
+            <div class="text-sm text-gray-600 mb-4">目标队员：<span id="assign-target-name" class="font-bold text-gray-900"></span></div>
+            <div id="admin-assign-event-list" class="space-y-2 max-h-60 overflow-y-auto mb-4 border p-2 rounded-lg"></div>
+            <div class="flex gap-3">
+                <button type="button" id="btn-close-admin-assign-modal" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">取消</button>
+                <button type="button" id="btn-confirm-assign" class="flex-1 py-2.5 bg-[#0056b3] hover:bg-[#004494] text-white font-semibold rounded-xl text-sm shadow">确认指派</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量指派：选事件 + 多选人员 -->
+    <div id="modal-batch-assign" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <h3 class="text-lg font-bold text-gray-800 mb-1 shrink-0">批量指派人员</h3>
+
+            <div class="mb-3 shrink-0">
+                <label class="block text-xs font-semibold text-gray-500 mb-1" for="batch-assign-event">目标事件</label>
+                <select id="batch-assign-event" class="w-full p-2.5 border rounded-lg text-sm"></select>
+            </div>
+
+            <div class="flex items-center justify-between mb-2 shrink-0">
+                <span class="text-xs font-semibold text-gray-500">选择人员</span>
+                <div class="flex gap-2">
+                    <button type="button" id="btn-batch-select-standby" class="text-[11px] px-2 py-1 rounded bg-green-50 text-green-700 hover:bg-green-100 font-semibold">全选待命</button>
+                    <button type="button" id="btn-batch-select-none" class="text-[11px] px-2 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 font-semibold">清空</button>
+                </div>
+            </div>
+            <div id="batch-assign-user-list" class="space-y-2 overflow-y-auto flex-1 min-h-[180px] max-h-[360px] border rounded-lg p-2 mb-4"></div>
+
+            <div class="flex gap-3 shrink-0">
+                <button type="button" id="btn-close-batch-assign" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">取消</button>
+                <button type="button" id="btn-confirm-batch-assign" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow">确认批量指派</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 广播：全体/分区/自选 + 是否含不可用 -->
+    <div id="modal-broadcast" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <h3 class="text-lg font-bold text-gray-800 mb-1 shrink-0">调度广播</h3>
+
+            <div class="mb-2 shrink-0">
+                <span class="block text-xs font-semibold text-gray-500 mb-2">广播范围</span>
+                <div id="broadcast-scope-chips" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <label class="mb-3 shrink-0 flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none">
+                <input type="checkbox" id="broadcast-include-unavailable" class="accent-teal-600">
+                发送给状态为「不可用」的人
+            </label>
+
+            <div id="broadcast-user-pick-wrap" class="hidden mb-3 shrink-0 flex flex-col min-h-0">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-semibold text-gray-500">自选人员</span>
+                    <div class="flex gap-2">
+                        <button type="button" id="btn-broadcast-pick-all" class="text-[11px] px-2 py-0.5 rounded bg-teal-50 text-teal-700 font-semibold">全选当前</button>
+                        <button type="button" id="btn-broadcast-pick-none" class="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-semibold">清空</button>
+                    </div>
+                </div>
+                <div id="broadcast-user-list" class="space-y-1 overflow-y-auto max-h-[180px] border rounded-lg p-2 bg-gray-50"></div>
+            </div>
+
+            <div id="broadcast-preview" class="mb-3 shrink-0 text-xs bg-teal-50 border border-teal-100 text-teal-800 rounded-xl px-3 py-2">
+                将通知 <strong id="broadcast-preview-count">0</strong> 人
+                <div id="broadcast-preview-names" class="mt-1 text-teal-700/90 max-h-24 overflow-y-auto whitespace-pre-wrap break-words"></div>
+            </div>
+
+            <div class="mb-3 shrink-0">
+                <label class="block text-xs font-semibold text-gray-500 mb-1" for="broadcast-message">通知内容</label>
+                <textarea id="broadcast-message" rows="3" maxlength="1000" placeholder="请输入广播内容…" class="w-full p-2.5 border rounded-lg text-sm"></textarea>
+            </div>
+
+            <div class="mb-4 shrink-0">
+                <span class="block text-xs font-semibold text-gray-500 mb-2">发送渠道</span>
+                <div class="grid grid-cols-3 gap-2">
+                    <label class="flex items-center justify-center gap-1.5 p-2.5 border rounded-xl cursor-pointer text-xs font-semibold hover:bg-teal-50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:text-teal-800">
+                        <input type="radio" name="broadcast_channel" value="terminal" class="accent-teal-600">
+                        终端
+                    </label>
+                    <label class="flex items-center justify-center gap-1.5 p-2.5 border rounded-xl cursor-pointer text-xs font-semibold hover:bg-teal-50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:text-teal-800">
+                        <input type="radio" name="broadcast_channel" value="wecom" class="accent-teal-600">
+                        企微
+                    </label>
+                    <label class="flex items-center justify-center gap-1.5 p-2.5 border rounded-xl cursor-pointer text-xs font-semibold hover:bg-teal-50 has-[:checked]:border-teal-600 has-[:checked]:bg-teal-50 has-[:checked]:text-teal-800">
+                        <input type="radio" name="broadcast_channel" value="all" class="accent-teal-600" checked>
+                        全部
+                    </label>
+                </div>
+                <button type="button" id="btn-open-broadcast-history" class="mt-2 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                    广播历史
+                </button>
+            </div>
+
+            <div class="flex gap-3 shrink-0">
+                <button type="button" id="btn-close-broadcast" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">取消</button>
+                <button type="button" id="btn-confirm-broadcast" class="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl text-sm shadow">发送广播</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 广播历史 -->
+    <div id="modal-broadcast-history" class="fixed inset-0 bg-black/50 z-[53] hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[85vh] flex flex-col">
+            <div class="flex items-start justify-between gap-3 mb-3 shrink-0">
+                <h3 class="text-lg font-bold text-gray-800">广播历史</h3>
+                <button type="button" id="btn-close-broadcast-history" class="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-sm font-bold">关闭</button>
+            </div>
+            <div id="broadcast-history-list" class="space-y-2 overflow-y-auto flex-1 min-h-[200px] text-sm"></div>
+        </div>
+    </div>
+
+    <!-- 单呼 -->
+    <div id="modal-unicast" class="fixed inset-0 bg-black/50 z-[52] hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-lg font-bold text-gray-800 mb-1">单呼通知</h3>
+            <p class="text-sm text-gray-600 mb-4">对象：<span id="unicast-target-name" class="font-bold text-gray-900"></span></p>
+            <input type="hidden" id="unicast-target-id" value="">
+
+            <div class="mb-3">
+                <label class="block text-xs font-semibold text-gray-500 mb-1" for="unicast-message">通知内容</label>
+                <textarea id="unicast-message" rows="4" maxlength="1000" placeholder="请输入要发送给该队员的内容…" class="w-full p-2.5 border rounded-lg text-sm"></textarea>
+            </div>
+
+            <div class="mb-4">
+                <span class="block text-xs font-semibold text-gray-500 mb-2">发送渠道</span>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 p-2.5 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                        <input type="radio" name="unicast_channel" value="terminal" class="accent-[#0056b3]">
+                        <span class="text-sm text-gray-800">仅终端通知</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-2.5 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                        <input type="radio" name="unicast_channel" value="wecom" class="accent-[#0056b3]">
+                        <span class="text-sm text-gray-800">仅企业微信通知</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-2.5 border rounded-xl cursor-pointer hover:bg-blue-50 has-[:checked]:border-[#0056b3] has-[:checked]:bg-blue-50">
+                        <input type="radio" name="unicast_channel" value="all" class="accent-[#0056b3]" checked>
+                        <span class="text-sm text-gray-800">全部发送（终端 + 企业微信）</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" id="btn-close-unicast" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">取消</button>
+                <button type="button" id="btn-confirm-unicast" class="flex-1 py-2.5 bg-[#0056b3] hover:bg-[#004494] text-white font-semibold rounded-xl text-sm shadow">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 外部上报弹窗：先提示（循环提示音）→ 查看详情（可改优先级） -->
+    <div id="modal-public-report" class="fixed inset-0 bg-black/60 z-[60] hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-t-4 border-amber-500">
+            <!-- 步骤1：新上报提示 -->
+            <div id="pr-step-alert">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <h3 class="text-lg font-bold text-gray-800">收到新的求助上报</h3>
+                    <span id="pr-alert-type" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 animate-pulse">待处理</span>
+                </div>
+                <div class="text-sm text-gray-700 mb-1">
+                    <span class="text-xs text-gray-400 font-semibold">事件地点</span>
+                    <div id="pr-alert-title" class="font-bold text-gray-900 mt-0.5"></div>
+                </div>
+                <div class="flex gap-3 mt-5">
+                    <button type="button" id="btn-close-public-report" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">关闭</button>
+                    <button type="button" id="btn-ack-public-report" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm shadow">查看详情</button>
+                </div>
+            </div>
+
+            <!-- 步骤2：详情 + 改优先级 -->
+            <div id="pr-step-detail" class="hidden">
+                <div class="flex items-start justify-between gap-3 mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">求助上报详情</h3>
+                    <span id="pr-detail-type" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">求助</span>
+                </div>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold">事件地点</div>
+                        <div id="pr-title" class="font-bold text-gray-900 mt-0.5"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold">联系方式</div>
+                        <div id="pr-contact" class="text-gray-800 mt-0.5"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold">详细情况</div>
+                        <div id="pr-details" class="text-gray-700 mt-0.5 whitespace-pre-wrap bg-gray-50 border rounded-xl p-3 max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 font-semibold" for="pr-priority">优先级</label>
+                        <select id="pr-priority" class="mt-1 w-full p-2.5 border rounded-lg text-sm">
+                            <option value="1">红色（高优先级）</option>
+                            <option value="2">黄色（中优先级）</option>
+                            <option value="3" selected>绿色（低优先级）</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-5">
+                    <button type="button" id="btn-close-public-report-detail" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">关闭</button>
+                    <button type="button" id="btn-save-public-report-priority" class="flex-1 py-2.5 bg-[#0056b3] hover:bg-[#004494] text-white font-semibold rounded-xl text-sm shadow">保存优先级</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLA 预告 / 超时弹窗：循环提示音 → 关闭或查看详情停音 -->
+    <div id="modal-sla-alert" class="fixed inset-0 bg-black/60 z-[62] hidden flex justify-center items-center p-4">
+        <div id="sla-alert-card" class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border-t-4 border-amber-500">
+            <div id="sla-step-alert">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                    <h3 id="sla-alert-heading" class="text-lg font-bold text-gray-800">事件 SLA 提醒</h3>
+                    <span id="sla-alert-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 animate-pulse">预告</span>
+                </div>
+                <div class="text-sm text-gray-700 mb-1">
+                    <span class="text-xs text-gray-400 font-semibold">事件地点</span>
+                    <div id="sla-alert-title" class="font-bold text-gray-900 mt-0.5"></div>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <span id="sla-alert-report-type" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700"></span>
+                    <span id="sla-alert-priority" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700"></span>
+                </div>
+                <div class="flex gap-3 mt-5">
+                    <button type="button" id="btn-close-sla-alert" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">关闭</button>
+                    <button type="button" id="btn-ack-sla-alert" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm shadow">查看详情</button>
+                </div>
+            </div>
+
+            <div id="sla-step-detail" class="hidden">
+                <div class="flex items-start justify-between gap-3 mb-4">
+                    <h3 id="sla-detail-heading" class="text-lg font-bold text-gray-800">SLA 详情</h3>
+                    <span id="sla-detail-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">预告</span>
+                </div>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold">事件地点</div>
+                        <div id="sla-detail-title" class="font-bold text-gray-900 mt-0.5"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <div class="text-xs text-gray-400 font-semibold">求助类型</div>
+                            <div id="sla-detail-report-type" class="text-gray-800 mt-0.5"></div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-400 font-semibold">优先级</div>
+                            <div id="sla-detail-priority" class="text-gray-800 mt-0.5"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold">联系方式</div>
+                        <div id="sla-detail-contact" class="text-gray-800 mt-0.5"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold">详细情况</div>
+                        <div id="sla-detail-details" class="text-gray-700 mt-0.5 whitespace-pre-wrap bg-gray-50 border rounded-xl p-3 max-h-40 overflow-y-auto"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div class="bg-gray-50 border rounded-xl p-3">
+                            <div class="text-gray-400 font-semibold">已等待</div>
+                            <div id="sla-detail-elapsed" class="font-bold text-gray-900 mt-1"></div>
+                        </div>
+                        <div class="bg-gray-50 border rounded-xl p-3">
+                            <div class="text-gray-400 font-semibold">阈值</div>
+                            <div id="sla-detail-thresholds" class="font-bold text-gray-900 mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-5">
+                    <button type="button" id="btn-close-sla-detail" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">关闭</button>
+                    <button type="button" id="btn-open-sla-event-drawer" class="flex-1 py-2.5 bg-[#0056b3] hover:bg-[#004494] text-white font-semibold rounded-xl text-sm shadow">打开事件详情</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 人员详细信息（资质 + 单呼） -->
+    <div id="modal-personnel-certs" class="fixed inset-0 bg-black/50 z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+            <div class="flex items-start justify-between gap-3 mb-3 border-b pb-3">
+                <div class="min-w-0">
+                    <h3 class="text-lg font-bold text-gray-800">详细信息</h3>
+                    <div class="text-sm text-gray-600 mt-1">姓名：<span id="personnel-certs-name" class="font-bold text-gray-900"></span></div>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        <button type="button" id="btn-open-unicast" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg shadow transition">
+                            单呼
+                        </button>
+                        <button type="button" id="btn-open-unicast-history" class="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-lg shadow transition">
+                            单呼历史
+                        </button>
+                    </div>
+                </div>
+                <button type="button" id="btn-close-personnel-certs" class="text-gray-400 hover:text-gray-700 text-xl leading-none px-1">&times;</button>
+            </div>
+            <div id="personnel-certs-list" class="space-y-2 max-h-[420px] overflow-y-auto pr-1"></div>
+            <p class="text-[11px] text-gray-400 mt-4">仅显示档案中勾选「调度可见」的资质</p>
+        </div>
+    </div>
+
+    <!-- 单呼历史 -->
+    <div id="modal-unicast-history" class="fixed inset-0 bg-black/50 z-[53] hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[85vh] flex flex-col">
+            <div class="flex items-start justify-between gap-3 mb-3 shrink-0">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">单呼历史</h3>
+                    <p class="text-xs text-gray-500 mt-1">对象：<span id="unicast-history-name" class="font-semibold text-gray-800"></span></p>
+                </div>
+                <button type="button" id="btn-close-unicast-history" class="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-sm font-bold">关闭</button>
+            </div>
+            <div id="unicast-history-list" class="space-y-2 overflow-y-auto flex-1 min-h-[200px] text-sm"></div>
+        </div>
+    </div>
+
+    <!-- 本场事件汇总 PDF -->
+    <div id="modal-export-activity" class="fixed inset-0 bg-black/50 z-[55] hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-lg font-bold text-gray-800 mb-1">导出本场事件汇总</h3>
+            <p class="text-xs text-gray-500 mb-4">填写活动信息后生成 PDF，内容为当前指挥台全部事件。</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-1" for="export-activity-name">活动名称 <span class="text-red-500">*</span></label>
+                    <input id="export-activity-name" type="text" maxlength="80" 
+                        class="w-full p-2.5 border rounded-xl text-sm outline-none focus:border-[#0056b3]">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-1" for="export-activity-date">活动日期 <span class="text-red-500">*</span></label>
+                    <input id="export-activity-date" type="date" class="w-full p-2.5 border rounded-xl text-sm outline-none focus:border-[#0056b3]">
+                </div>
+            </div>
+            <p id="export-activity-hint" class="hidden text-xs text-red-500 mt-3"></p>
+            <div class="flex gap-3 mt-5">
+                <button type="button" id="btn-close-export-activity" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">取消</button>
+                <button type="button" id="btn-confirm-export-activity" class="flex-1 py-2.5 bg-[#0056b3] hover:bg-[#004494] text-white font-semibold rounded-xl text-sm shadow">生成 PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="alarm-audio" src="sounds/alarm.mp3" preload="auto"></audio>
+    <audio id="event-tone" src="sounds/event_tone.mp3" preload="auto" loop></audio>
+    <audio id="sla-warn-tone" src="sounds/sla_warn_tone.mp3" preload="auto" loop></audio>
+    <audio id="sla-timeout-tone" src="sounds/sla_timeout_tone.mp3" preload="auto" loop></audio>
+
+    <script src="/platform/branding.js?v=20260813c"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="js/common.js?v=20260814w" defer></script>
+    <script src="js/admin.js?v=20260819a" defer></script>
+</body>
+</html>

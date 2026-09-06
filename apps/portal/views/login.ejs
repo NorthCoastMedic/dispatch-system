@@ -1,0 +1,27 @@
+<%- include('partials/header') %>
+<style>
+    body { background-color: var(--bg-color, #f4f7f6); }
+    .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 75vh; }
+    .login-card { background: var(--white, #fff); padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px var(--pt-shadow, rgba(0,0,0,0.08)); width: 100%; max-width: 400px; text-align: center; }
+    .login-card h2 { color: var(--pt-accent, #0056b3); margin-bottom: 30px; font-weight: bold; letter-spacing: 1px; }
+    .login-input { width: 100%; padding: 15px; margin-bottom: 20px; border: 1px solid var(--pt-border, #ddd); border-radius: 8px; font-size: 15px; box-sizing: border-box; outline: none; transition: border 0.3s; background: var(--pt-input-bg, #fff); color: var(--text-dark, #333); }
+    .login-input:focus { border-color: var(--pt-accent, #0056b3); }
+    .login-btn { width: 100%; padding: 15px; background: var(--primary-color, #0056b3); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+    .login-btn:hover { background: var(--primary-hover, #004494); }
+    .error-msg { background: #ffe6e6; color: #dc3545; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+</style>
+<div class="login-wrapper">
+    <div class="login-card">
+        <h2><%= branding.login_title %></h2>
+        <% if (error) { %><div class="error-msg">✖ <%= error %></div><% } %>
+        <form method="POST">
+            <% if (typeof redirect !== 'undefined' && redirect) { %>
+            <input type="hidden" name="redirect" value="<%= redirect %>">
+            <% } %>
+            <input type="text" name="username" class="login-input" placeholder="请输入账号" required>
+            <input type="password" name="password" class="login-input" placeholder="请输入密码" required>
+            <button type="submit" class="login-btn">验证并登录</button>
+        </form>
+    </div>
+</div>
+<%- include('partials/footer') %>

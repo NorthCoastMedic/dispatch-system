@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme-default="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>活动RTLS系统后台</title>
+    <script>
+    (function () {
+        var k = 'rms_theme';
+        var d = document.documentElement.getAttribute('data-theme-default') || 'light';
+        try {
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark') ? t : d);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', d);
+        }
+        document.documentElement.classList.add('platform-themed');
+    })();
+    </script>
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <link rel="stylesheet" href="/platform/topnav.css?v=20260814c">
+    <link rel="stylesheet" href="/platform/theme.css?v=20260814a">
+    <script src="/platform/topnav.js?v=20260814c" defer></script>
+    <script src="/platform/theme.js?v=20260814a" defer></script>
+    <link rel="stylesheet" href="admin.css?v=20260814q">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+    <header class="admin-header">
+        <h1>活动信息与设备管理后台</h1>
+        <nav class="top-nav">
+            <div data-rms-theme-slot class="rms-theme-toggle-wrap"></div>
+            <div id="platform-topnav" data-ptn="modules"></div>
+            <a href="/wbgt/" class="nav-btn">WBGT</a>
+            <a href="/rtls/" class="nav-btn">实时大屏</a>
+            <a href="/rtls/admin.html" class="nav-btn active">⚙ 设备管理</a>
+        </nav>
+    </header>
+
+    <div class="content-wrapper">
+        <section class="panel">
+            <h2>活动信息与赛事时间轴配置</h2>
+            <div class="grid-layout">
+                <div class="card-box">
+                    <h3>修改当前展示活动名称</h3>
+                    <input type="text" id="event-name-input" placeholder="正在同步当前数据...">
+                    <button class="primary" onclick="window.updateEventName()">保存更新活动名称</button>
+                </div>
+                <div class="card-box">
+                    <h3>时间轴管理 (新建/编辑)</h3>
+                    <input type="hidden" id="sched-id">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <input type="date" id="sched-date">
+                        <input type="time" id="sched-time">
+                    </div>
+                    <input type="text" id="sched-name" placeholder="请输入事件...">
+                    <button class="primary" onclick="window.saveSchedule()">保存事件</button>
+
+                    <div style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #475569;">当前活动时间轴：</h4>
+                        <div id="schedule-list" style="max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>GPS定位设备</h2>
+            <div class="toolbar">
+                <label class="file-label" for="kml-upload">📂 上传活动 KML 文件</label>
+                <input type="file" id="kml-upload" accept=".kml" style="display: none;" onchange="window.uploadKML(this)">
+                <input type="text" id="search" placeholder="输入设备硬件ID或昵称过滤..." oninput="window.filterDevices()">
+            </div>
+            <div id="device-grid"></div>
+        </section>
+
+        <section class="panel">
+            <h2>地点定位设置</h2>
+            <div class="toolbar">
+                <button class="primary" onclick="window.openMarkerModal()">+ 添加新标点</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>标点名称</th>
+                            <th>标点类型</th>
+                            <th>位置 (纬度, 经度)</th>
+                            <th>备注</th>
+                            <th style="width: 130px; text-align: center;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="marker-list-body">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div id="overlay" class="overlay">
+        <div class="modal">
+            <h3>📝 GPS定位设置</h3>
+            <div style="font-size: 12px; color: #64748b; margin-top: -8px;">设备标识：<span id="edit-id" class="font-mono font-bold text-blue"></span></div>
+            
+            <input type="text" id="edit-nick" placeholder="设备名称">
+            <select id="edit-role" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 10px; background: #fff; font-size: 14px; color: #334155;">
+                <option value="AED">AED</option>
+                <option value="救护员">救护员</option>
+                <option value="观察员">观察员</option>
+                <option value="救护车">救护车</option>
+            </select>
+            
+            <select id="edit-icon-type">
+                <option value="0">🏃 默认通用图标</option>
+                <option value="1">🚑 特种急救图标</option>
+            </select>
+            
+            <textarea id="edit-remark" placeholder="输入备注（当指挥员在大屏点击此设备时，显示该备注）"></textarea>
+            
+            <select id="edit-enabled">
+                <option value="1">🟢 设备启用（显示）</option>
+                <option value="0">🔴 设备停用（隐藏）</option>
+            </select>
+            
+            <div class="modal-actions">
+                <button onclick="document.getElementById('overlay').style.display='none'">取消</button>
+                <button class="primary" onclick="window.saveDevice()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="marker-overlay" class="overlay">
+        <div class="modal" style="max-width: 550px;">
+            <h3 id="marker-modal-title">📍 添加标点</h3>
+            <input type="hidden" id="marker-id">
+            
+            <input type="text" id="marker-name" placeholder="请输入名称（如：5KM补给点）">
+            
+            <select id="marker-type">
+                <option value="water">💧 补给点</option>
+                <option value="medical">❌ 医疗点</option>
+                <option value="hospital">🏥 转运医院</option>
+            </select>
+            
+            <label style="font-size: 12px; color: #64748b; margin-top: 5px; display: block;">🗺️ 选址：请在下方地图上直接点击修改位置</label>
+            <div id="modal-map" style="height: 220px; width: 100%; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 4px; z-index: 10;"></div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input type="number" step="0.00000001" id="marker-lat" placeholder="坐标纬度 Lat" readonly style="background: #f1f5f9; cursor: not-allowed;">
+                <input type="number" step="0.00000001" id="marker-lng" placeholder="坐标经度 Lng" readonly style="background: #f1f5f9; cursor: not-allowed;">
+            </div>
+            
+            <textarea id="marker-remark" placeholder="备注"></textarea>
+            
+            <div class="modal-actions">
+                <button onclick="window.closeMarkerModal()">取消</button>
+                <button class="primary" id="btn-save-marker" onclick="window.saveMarker()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="unified-site-footer" style="margin: 40px auto; padding: 20px; text-align: center; color: #94a3b8; font-size: 13px; border-top: 1px solid #e2e8f0; max-width: 1200px;">
+        <p style="margin: 0;" data-brand="footer_copyright">页脚版权行</p>
+        <p style="margin: 4px 0 0 0; font-size: 11px;" data-brand="footer_motto">页脚标语</p>
+    </footer>
+
+    <script src="/platform/branding.js?v=20260813a"></script>
+    <script src="mapHome.js?v=20260820a"></script>
+    <script src="admin.js?v=20260820a"></script>
+</body>
+</html>

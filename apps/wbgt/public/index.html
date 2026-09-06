@@ -1,0 +1,225 @@
+<html lang="zh-CN" data-theme-default="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动现场环境监测大屏</title>
+    <script>
+    (function () {
+        var k = 'rms_theme';
+        var d = document.documentElement.getAttribute('data-theme-default') || 'light';
+        try {
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark') ? t : d);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', d);
+        }
+        document.documentElement.classList.add('platform-themed');
+    })();
+    </script>
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <link rel="stylesheet" href="/platform/topnav.css?v=20260814c">
+    <link rel="stylesheet" href="/platform/theme.css?v=20260814a">
+    <script src="/platform/topnav.js?v=20260814c" defer></script>
+    <script src="/platform/theme.js?v=20260814a" defer></script>
+    <link rel="stylesheet" href="style.css?v=20260814p">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="header">
+            <div class="header-left" id="header-time-top">00:00:00</div>
+            <div class="title-group">
+                <h1>WBGT 湿球黑球温度 — 赛场环境数据平台</h1>
+            </div>
+            <div class="header-right">
+                <!-- 联动多平台统一导航键组 -->
+                <div class="nav-links">
+                    <div data-rms-theme-slot class="rms-theme-toggle-wrap"></div>
+                    <div id="platform-topnav" data-ptn="modules"></div>
+                    <a href="/wbgt/" class="nav-btn btn-wbgt active">WBGT</a>
+                    <a href="/rtls/" class="nav-btn btn-realtime">实时大屏</a>
+                    <a href="/rtls/admin.html" class="nav-btn btn-admin">⚙ 设备管理</a>
+                    <button id="btn-manual-refresh" class="nav-btn btn-refresh">
+                    <svg fill="currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> 立即刷新
+                </button>
+                </div>
+                <span id="system-status-badge" class="status-badge">● 系统运行正常</span>
+                <span id="clock" class="clock">00:00:00</span>
+            </div>
+        </header>
+
+        <main class="grid-layout">
+            <section class="panel-column left-panel">
+                <div class="card">
+                    <div class="card-title">🎯 WBGT 实时指数</div>
+                    <div class="realtime-display-wrapper">
+                        <div class="digital-num-box">
+                            <span id="realtime-wbgt-value">--.-</span><span class="digital-unit">°C</span>
+                        </div>
+                        <div class="risk-badge-container">
+                            <div id="riskText" class="risk-main-badge">加载中...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel-column center-panel">
+                <div class="card">
+                    <div class="card-title">⚙️ 赛道环境信息</div>
+                    <div class="param-grid">
+                        <!-- 1. 环境温度 Ta -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-ta">🌡️</div>
+                            <div class="param-info">
+                                <div class="param-label">环境温度 Ta</div>
+                                <div class="param-value"><span id="val-ta">--.-</span><span class="unit">°C</span></div>
+                                <div class="param-desc">决定了干热交换的效率</div>
+                            </div>
+                        </div>
+                        <!-- 2. 相对湿度 RH -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-rh">💧</div>
+                            <div class="param-info">
+                                <div class="param-label">相对湿度 RH</div>
+                                <div class="param-value"><span id="val-rh">--.-</span><span class="unit">%</span></div>
+                                <div class="param-desc">空气中水汽的饱和程度</div>
+                            </div>
+                        </div>
+                        <!-- 3. 黑球温度 Tg -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-tg">🔮</div>
+                            <div class="param-info">
+                                <div class="param-label">黑球温度 Tg</div>
+                                <div class="param-value"><span id="val-tg">--.-</span><span class="unit">°C</span></div>
+                                <div class="param-desc">辐射感应温度</div>
+                            </div>
+                        </div>
+                        <!-- 4. 水汽压 e -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-e">💨</div>
+                            <div class="param-info">
+                                <div class="param-label">水汽压 e</div>
+                                <div class="param-value"><span id="val-e">--.-</span><span class="unit">hPa</span></div>
+                                <div class="param-desc">运动员通过汗液蒸发进行体温调节的效率</div>
+                            </div>
+                        </div>
+                        <!-- 5. 自然湿球 Tnw -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-tnw">🧊</div>
+                            <div class="param-info">
+                                <div class="param-label">自然湿球 Tnw</div>
+                                <div class="param-value"><span id="val-tnw">--.-</span><span class="unit">°C</span></div>
+                                <div class="param-desc">蒸发散热核指标</div>
+                            </div>
+                        </div>
+                        <!-- 6. 水汽压差 VPD -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-vpd">🏜️</div>
+                            <div class="param-info">
+                                <div class="param-label">水汽压差 VPD</div>
+                                <div class="param-value"><span id="val-vpd">--.-</span><span class="unit">kPa</span></div>
+                                <div class="param-desc">排汗蒸发驱动力</div>
+                            </div>
+                        </div>
+                        <!-- 7. 皮肤湿润度 SW -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-skin">💦</div>
+                            <div class="param-info">
+                                <div class="param-label">皮肤湿润度 SW</div>
+                                <div class="param-value"><span id="val-skin">--.-</span><span class="unit">%</span></div>
+                                <div class="param-desc">环境代偿负荷率</div>
+                            </div>
+                        </div>
+                        <!-- 8. 风速 WS (已移至最末尾，接口纯空置预留) -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-ws">🍃</div>
+                            <div class="param-info">
+                                <div class="param-label">风速 WS</div>
+                                <div class="param-value"><span id="val-ws">--.-</span><span class="unit">m/s</span></div>
+                                <div class="param-desc">硬件扩容接口预留</div>
+                            </div>
+                        </div>
+                        <!-- 9. 太阳辐射 SR (已移至最末尾，接口纯空置预留) -->
+                        <div class="param-sub-card">
+                            <div class="param-icon icon-sr">☀️</div>
+                            <div class="param-info">
+                                <div class="param-label">太阳辐射 SR</div>
+                                <div class="param-value"><span id="val-sr">--.-</span><span class="unit">W/m²</span></div>
+                                <div class="param-desc">硬件扩容接口预留</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel-column right-panel">
+                <div class="card">
+                    <div class="card-title">📊 环境数据趋势 (含温度/湿度/WBGT)</div>
+                    <div class="chart-wrapper" id="barChart"></div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer-panel">
+            <div class="card advice-card">
+                <div class="card-title">⚠️ 热强度风险等级 & 赛事建议</div>
+                <div class="advice-list" id="adviceList">
+                    <div class="advice-item extreme" id="advice-extreme">
+                        <div class="advice-title">● 极端风险 — WBGT ≥ 30°C</div>
+                        <div class="advice-desc">考虑赛事熔断。建议立即中止/取消室外竞赛。热射病风险极高，重点巡视赛道末端及高危群体。</div>
+                    </div>
+                    <div class="advice-item very-high" id="advice-very-high">
+                        <div class="advice-title">● 极高风险 — WBGT 28~30°C</div>
+                        <div class="advice-desc">建议增加补给站密度。建议运动员主动下调配速，医疗点需提前进行相关降温准备。</div>
+                    </div>
+                    <div class="advice-item high" id="advice-high">
+                        <div class="advice-title">● 高风险 — WBGT 23~28°C</div>
+                        <div class="advice-desc">建议运动员每 30 分钟补充 400-600ml 电解质饮料。加强赛道医疗巡视，观察出现步态不稳或意识模糊的选手，及时引导退出比赛。</div>
+                    </div>
+                    <div class="advice-item medium" id="advice-medium">
+                        <div class="advice-title">● 中等风险 — WBGT 18~23°C</div>
+                        <div class="advice-desc">提示性关注。环境适宜但不可忽视脱水风险。建议每 30 分钟补水 250-400ml。鼓励利用遮阳区域及补给点进行基础降温。</div>
+                    </div>
+                    <div class="advice-item low" id="advice-low">
+                        <div class="advice-title">● 低风险 — WBGT &lt; 18°C</div>
+                        <div class="advice-desc">正常开展。关注赛事节奏，维持常规补水与营养补给策略，做好基础防风/防晒即可。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card trend-card">
+                <div class="trend-header-row">
+                    <div class="card-title-text">📈 WBGT 热强度趋势监测</div>
+                    <div class="trend-controls">
+                        <div class="toggle-group">
+                            <label class="control-lbl"><input type="checkbox" id="chk-ta" checked> 温度</label>
+                            <label class="control-lbl"><input type="checkbox" id="chk-rh" checked> 湿度</label>
+                            <label class="control-lbl"><input type="checkbox" id="chk-tg" checked> 黑球</label>
+                            <label class="control-lbl"><input type="checkbox" id="chk-wbgt" checked> WBGT</label>
+                        </div>
+                        <select id="time-range-select" class="styled-select">
+                            <option value="30m">30 分钟</option>
+                            <option value="1h">1 小时</option>
+                            <option value="2h">2 小时</option>
+                            <option value="4h">4 小时</option>
+                            <option value="6h">6 小时</option>
+                            <option value="8h">8 小时</option>
+                            <option value="10h">10 小时</option>
+                            <option value="12h" selected>12 小时</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-wrapper" id="lineChart"></div>
+            </div>
+        </footer>
+        
+        <!-- 统一页脚（可在系统设置中修改） -->
+        <div class="footer-copyright">
+            <div data-brand="footer_copyright">页脚版权行</div>
+            <div data-brand="footer_motto" style="margin-top: 2px; font-size: 0.7rem; opacity: 0.9;">页脚标语</div>
+        </div>
+    </div>
+    <script src="/platform/branding.js?v=20260813a"></script>
+    <script src="app.js?v=20260814p"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "name": "beian-unified-platform",
+  "version": "2.0.0",
+  "description": "统一组织系统（portal + RMS + RTLS + WBGT）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.12",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "mqtt": "^5.15.1",
+    "multer": "^2.2.0",
+    "mysql2": "^3.11.0",
+    "pg": "^8.22.0",
+    "sharp": "^0.35.4",
+    "socket.io": "^4.7.5"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
+  }
+}
