@@ -1,8 +1,7 @@
-// 1. 同步全屏幕多端时钟
+// 1. 同步时钟
 setInterval(() => {
     const timeStr = new Date().toLocaleTimeString('zh-CN', { hour12: false });
     document.getElementById('clock').innerText = timeStr;
-    document.getElementById('header-time-top').innerText = timeStr;
 }, 1000);
 
 // 2. 初始化 ECharts 容器

@@ -1,25 +1,38 @@
 <%- include('partials/header') %>
 <style>
-    .logs-wrap { max-width: 1100px; margin: 28px auto; padding: 0 16px 40px; }
-    .logs-hd { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
-    .logs-hd h2 { margin:0; color:#0056b3; }
-    .logs-note { font-size:13px; color:#64748b; margin:6px 0 0; }
-    .logs-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
-    .logs-tabs a { padding:8px 12px; border-radius:8px; text-decoration:none; font-size:13px; font-weight:700; background:#e8eef5; color:#334; }
-    .logs-tabs a.active { background:#0056b3; color:#fff; }
-    .logs-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:#fff; border:1px solid #eee; border-radius:10px; padding:12px; margin-bottom:14px; }
-    .logs-filters input, .logs-filters select { padding:8px 10px; border:1px solid #ddd; border-radius:6px; }
-    .logs-filters button, .logs-filters a.btn { padding:8px 14px; border:none; border-radius:6px; background:#0056b3; color:#fff; font-weight:700; text-decoration:none; cursor:pointer; }
-    .logs-filters a.btn.ghost { background:#e2e8f0; color:#334; }
-    .table-responsive { overflow-x:auto; background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.05); }
-    table.logs { width:100%; border-collapse:collapse; min-width:980px; font-size:13px; }
-    table.logs th, table.logs td { padding:10px 12px; border-bottom:1px solid #f1f5f9; text-align:left; vertical-align:top; }
-    table.logs th { background:#0056b3; color:#fff; }
+    .logs-wrap { flex:1; width:auto; max-width:1240px; margin:12px auto 16px; padding:0; box-sizing:border-box; background: var(--pt-panel, #fff); border:1px solid var(--pt-border-soft, #b9c1ca); }
+    .logs-hd { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 14px; background: var(--pt-panel-2, #e9ecf0); border-bottom:1px solid var(--pt-border-soft, #b9c1ca); }
+    .logs-hd h2 { margin:0; font-size:16px; letter-spacing:1px; color: var(--pt-text, #1f3a63); }
+    .logs-note { font-size:12px; color: var(--pt-muted, #64748b); }
+    .logs-hd .btn { padding:6px 14px; border:1px solid var(--pt-border-soft, #8a8a8a); border-radius:0; background: var(--pt-panel, #e9ecf0); color: var(--pt-accent, #1f3a63); font-size:13px; font-weight:700; text-decoration:none; }
+    .logs-hd .btn:hover { background: var(--pt-hover, #dbe4f0); }
+    .logs-tabs { display:flex; flex-wrap:wrap; gap:0; padding:0 10px; background: var(--pt-panel, #fff); border-bottom:1px solid var(--pt-border-soft, #b9c1ca); }
+    .logs-tabs a { padding:9px 15px; border:1px solid transparent; border-bottom:0; border-radius:0; text-decoration:none; font-size:13px; font-weight:700; color: var(--pt-text-2, #334); }
+    .logs-tabs a:hover { background: var(--pt-hover, #eef2f7); }
+    .logs-tabs a.active { background: var(--pt-header, #0056b3); color:#fff; border-color: var(--pt-header, #0056b3); }
+    .logs-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; background: var(--pt-panel-2, #f4f5f7); border-bottom:1px solid var(--pt-border-soft, #b9c1ca); }
+    .logs-filters input, .logs-filters select { padding:6px 9px; border:1px solid var(--pt-border-soft, #8a8a8a); border-radius:0; background: var(--pt-input-bg, #fff); color: var(--pt-text, #333); font-size:13px; font-family:inherit; }
+    .logs-filters button, .logs-filters a.btn { padding:6px 14px; border:1px solid var(--pt-header, #0056b3); border-radius:0; background: var(--pt-header, #0056b3); color:#fff; font-weight:700; font-size:13px; cursor:pointer; text-decoration:none; font-family:inherit; }
+    .logs-filters a.btn.ghost { background: var(--pt-panel, #e2e8f0); border-color: var(--pt-border-soft, #8a8a8a); color: var(--pt-text-2, #334); }
+    .table-responsive { overflow-x:auto; background: var(--pt-panel, #fff); }
+    table.logs { width:100%; border-collapse:collapse; min-width:760px; font-size:13px; }
+    table.logs th, table.logs td { padding:8px 10px; border:1px solid var(--pt-border, #d6dae0); text-align:left; vertical-align:top; color: var(--pt-text, #1a1a1a); }
+    table.logs th { background: var(--pt-panel-2, #e9ecf0); color: var(--pt-text, #2b3b52); white-space:nowrap; font-weight:700; }
     .ok { color:#15803d; font-weight:700; }
     .fail { color:#b91c1c; font-weight:700; }
-    .muted { color:#94a3b8; word-break:break-all; }
-    .pager { display:flex; gap:8px; align-items:center; margin-top:14px; }
-    .pager a { color:#0056b3; text-decoration:none; }
+    .muted { color: var(--pt-muted, #94a3b8); word-break:break-all; }
+    .pager { display:flex; gap:12px; align-items:center; padding:10px 14px; font-size:13px; color: var(--pt-text-2, #334); border-top:1px solid var(--pt-border-soft, #b9c1ca); }
+    .pager a { color: var(--pt-accent, #0056b3); text-decoration:none; }
+    .pager a:hover { text-decoration:underline; }
+    @media (max-width:640px) {
+        .logs-wrap { max-width:none; margin:0; border-left:0; border-right:0; }
+        .logs-hd, .logs-filters { padding:9px 10px; }
+        .logs-filters input, .logs-filters select { flex:1; min-width:0; }
+        .logs-tabs { padding:0 4px; }
+        .logs-tabs a { padding:9px 11px; }
+        table.logs { font-size:12px; }
+        table.logs th, table.logs td { padding:7px 8px; }
+    }
 </style>
 <main class="logs-wrap">
     <% var kind = typeof kind !== 'undefined' && kind ? kind : 'login'; %>
@@ -27,7 +40,7 @@
         <div>
             <h2>操作日志</h2>
         </div>
-        <a href="dashboard.php" class="btn ghost" style="padding:8px 14px; background:#6c757d; color:#fff; border-radius:6px; text-decoration:none; font-weight:700;">返回导航页</a>
+        <a href="dashboard.php" class="btn ghost">返回导航页</a>
     </div>
     <nav class="logs-tabs">
         <% (kinds || []).forEach(function (k) { %>

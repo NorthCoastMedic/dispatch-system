@@ -7,6 +7,9 @@ let agencyListFromSettings = [];
 let latestDashboardUsers = [];
 let latestDashboardEvents = [];
 let slaDashboardReady = false;
+// 本次指挥官（调度台设置；新事件与事件完成只通知指挥官）
+let commanderProfiles = [];
+let commanderIds = new Set();
 
 document.addEventListener('DOMContentLoaded', async () => {
     loadSlaAckState();
@@ -29,6 +32,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         allEvents = payload.events || [];
         slaDashboardReady = true;
         renderDashboard(payload.users, payload.events);
+        commanderProfiles = Array.isArray(payload.commanders) ? payload.commanders : [];
+        commanderIds = new Set(commanderProfiles.map((c) => Number(c.id)));
+        renderCommanderSummary();
+        const cmdModalEl = document.getElementById('modal-commanders');
+        if (cmdModalEl && !cmdModalEl.classList.contains('hidden')) renderCommanderPickList();
         if (openEventDetailId && !eventDrawerUnlocked) refreshOpenEventDrawer();
         stopSlaIfArrivedOnScene();
         evaluateSlaAlerts();
@@ -306,7 +314,7 @@ function renderEventDrawer(data) {
             </div>
             <div>
                 <label class="block text-[11px] text-gray-400 font-semibold mb-1" for="ed-edit-title">事件地点</label>
-                <input type="text" id="ed-edit-title" value="${escapeHtml(fields.title)}" class="w-full p-2.5 border rounded-lg text-sm" placeholder="如：中山区某某路交叉口">
+                <input type="text" id="ed-edit-title" value="${escapeHtml(fields.title)}" class="w-full p-2.5 border rounded-lg text-sm" placeholder="如：地点名称">
             </div>
             <div>
                 <label class="block text-[11px] text-gray-400 font-semibold mb-1" for="ed-edit-contact">联系方式</label>
@@ -490,6 +498,7 @@ function renderDashboard(users, events) {
                     <div class="dc-name font-semibold text-sm flex items-center gap-2 flex-wrap">
                         ${escapeHtml(displayName)}
                         <span class="dc-meta text-xs font-normal">(${escapeHtml(u.role)})</span>
+                        ${commanderIds.has(Number(u.id)) ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-amber-500/90 text-white" title="本次指挥官">指挥</span>' : ''}
                         ${agencyLabel ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-slate-700/80 text-slate-200">${escapeHtml(agencyLabel)}</span>` : ''}
                     </div>
                     ${eventInfo}
@@ -1786,7 +1795,114 @@ function confirmBroadcast() {
     });
 }
 
+/* ---------- 本次指挥官 ---------- */
+function renderCommanderSummary() {
+    const el = document.getElementById('commander-summary');
+    if (!el) return;
+    const list = commanderProfiles || [];
+    const names = list.map((c) => personDisplayName(c)).filter(Boolean);
+    if (!names.length) {
+        el.textContent = '指挥官：未设置';
+        el.title = '未设置指挥官：新事件与事件完成通知全体非离线成员';
+        return;
+    }
+    el.textContent = '指挥官：' + names.join('、');
+    const noPhone = list.filter((c) => c.has_phone === false).map((c) => personDisplayName(c));
+    el.title = noPhone.length
+        ? `未绑定手机号（收不到企业微信）：${noPhone.join('、')}`
+        : '新事件与事件完成只通知指挥官';
+}
+
+function renderCommanderPickList() {
+    const listEl = document.getElementById('commander-user-list');
+    if (!listEl) return;
+    const candidates = (latestDashboardUsers || []).slice()
+        .sort((a, b) => personDisplayName(a).localeCompare(personDisplayName(b), 'zh'));
+    if (!candidates.length) {
+        listEl.innerHTML = '<div class="text-xs text-gray-400 py-3 text-center">人员数据加载中…</div>';
+        return;
+    }
+    listEl.innerHTML = candidates.map((u) => {
+        const id = Number(u.id);
+        const checked = commanderIds.has(id) ? 'checked' : '';
+        const agency = String(u.agency || '').trim();
+        return `
+            <label class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white border text-xs cursor-pointer hover:bg-amber-50">
+                <input type="checkbox" class="commander-user-cb accent-amber-500" value="${id}" ${checked}>
+                <span class="font-semibold text-gray-800 truncate">${escapeHtml(personDisplayName(u))}</span>
+                <span class="text-gray-400 shrink-0">${escapeHtml(statusShortLabel(u.status))}</span>
+                ${agency ? `<span class="ml-auto text-[10px] text-slate-500 shrink-0">${escapeHtml(agency)}</span>` : ''}
+            </label>
+        `;
+    }).join('');
+}
+
+function setCommandersMsg(text, isError) {
+    const msg = document.getElementById('commanders-msg');
+    if (!msg) return;
+    msg.textContent = text || '';
+    msg.className = isError
+        ? 'text-xs text-red-600 mt-2 min-h-[16px]'
+        : 'text-xs text-amber-700 mt-2 min-h-[16px]';
+}
+
+function openCommandersModal() {
+    setCommandersMsg('');
+    renderCommanderPickList();
+    const modal = document.getElementById('modal-commanders');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeCommandersModal() {
+    const modal = document.getElementById('modal-commanders');
+    if (modal) modal.classList.add('hidden');
+}
+
+function confirmCommanders() {
+    const listEl = document.getElementById('commander-user-list');
+    const ids = listEl
+        ? Array.from(listEl.querySelectorAll('.commander-user-cb:checked')).map((cb) => Number(cb.value))
+        : [];
+    if (!socket) return;
+    socket.emit('set_commanders', { userIds: ids }, (resp) => {
+        if (!resp || !resp.success) {
+            setCommandersMsg((resp && resp.message) || '保存失败，请重试', true);
+            return;
+        }
+        setCommandersMsg('');
+        closeCommandersModal();
+        if (resp.no_phone && resp.no_phone.length) {
+            alert(resp.message || '部分指挥官未绑定手机号，收不到企业微信通知');
+        }
+    });
+}
+
+function bindCommanderControls() {
+    const btnOpen = document.getElementById('btn-commanders');
+    if (btnOpen) btnOpen.addEventListener('click', openCommandersModal);
+    const btnClose = document.getElementById('btn-close-commanders');
+    if (btnClose) btnClose.addEventListener('click', closeCommandersModal);
+    const btnConfirm = document.getElementById('btn-confirm-commanders');
+    if (btnConfirm) btnConfirm.addEventListener('click', confirmCommanders);
+    const btnAll = document.getElementById('btn-commander-pick-all');
+    if (btnAll) btnAll.addEventListener('click', () => {
+        document.querySelectorAll('#commander-user-list .commander-user-cb').forEach((cb) => { cb.checked = true; });
+    });
+    const btnNone = document.getElementById('btn-commander-pick-none');
+    if (btnNone) btnNone.addEventListener('click', () => {
+        document.querySelectorAll('#commander-user-list .commander-user-cb').forEach((cb) => { cb.checked = false; });
+    });
+    const modal = document.getElementById('modal-commanders');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeCommandersModal();
+        });
+    }
+    renderCommanderSummary();
+}
+
 function bindAdminActions() {
+    bindCommanderControls();
     const personnelListEl = document.getElementById('personnel-list');
     if (personnelListEl && !personnelListEl.dataset.bound) {
         personnelListEl.dataset.bound = '1';

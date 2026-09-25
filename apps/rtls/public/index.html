@@ -31,7 +31,7 @@
 
     <header class="fixed-header">
         <div class="header-left">
-            <span class="event-tag">⏱ <span id="header-time">00:00:00</span></span>
+            <span class="event-tag"><span id="header-time">00:00:00</span></span>
             <div id="active-alert" class="alert-box">系统准备就绪</div>
         </div> 
         <div class="header-center">
@@ -42,18 +42,24 @@
         </div>
         <div class="header-right">
             <div id="weather-monitor">
-                <span>🌡 <span id="w-temp">--</span>°C</span>
-                <span>👤 体感 <span id="w-feels">--</span>°C</span>
-                <span>💧 <span id="w-hum">--</span>%</span>
-                <span>💨 <span id="w-wind">--</span>m/s</span>
-                <span>🧭 <span id="w-dir">微风</span></span>
+                <span>气温 <span id="w-temp">--</span>°C</span>
+                <span>体感 <span id="w-feels">--</span>°C</span>
+                <span>湿度 <span id="w-hum">--</span>%</span>
+                <span>风速 <span id="w-wind">--</span>m/s</span>
+                <span id="w-dir">微风</span>
             </div>
             <nav class="top-nav">
                 <div data-rms-theme-slot class="rms-theme-toggle-wrap"></div>
                 <div id="platform-topnav" data-ptn="modules"></div>
-                <a href="/wbgt/" class="nav-item">WBGT</a>
-                <a href="/rtls/" class="nav-item active">实时大屏</a>
-                <a href="/rtls/admin.html" class="nav-item admin-btn">⚙ 设备管理</a>
+                <span class="module-links">
+                    <a href="/wbgt/" class="nav-item">WBGT 热环境</a>
+                    <a href="/rtls/" class="nav-item active">实时大屏</a>
+                </span>
+                <select class="module-switch" aria-label="切换模块" onchange="if(this.value)location.href=this.value;">
+                    <option value="/wbgt/">WBGT 热环境</option>
+                    <option value="/rtls/" selected>实时大屏</option>
+                </select>
+                <a href="/rtls/admin.html" class="nav-item admin-btn">设备管理</a>
             </nav>
         </div>
     </header>
@@ -63,7 +69,7 @@
         
         <aside class="float-sidebar-left">
             <div class="panel-header">
-                <span class="panel-title">📋 设备列表</span>
+                <span class="panel-title">设备列表</span>
                 <div class="stats-badge">
                     <span>在线 <strong id="online-count" class="text-blue">0</strong></span>
                     <span class="divider">/</span>
@@ -83,7 +89,7 @@
         
         <div id="device-sidebar" class="sidebar-right">
             <div class="sidebar-header">
-                <h3>🔍 设备详细信息</h3>
+                <h3>设备详细信息</h3>
                 <button class="close-btn" onclick="window.closeSidebar()">×</button>
             </div>
             <div class="sidebar-content">

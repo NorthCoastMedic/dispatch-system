@@ -55,7 +55,8 @@ main {
 /* ================================ */
 .site-header {
     background: var(--primary-color);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    box-shadow: none;
+    border-bottom: 2px solid var(--pt-header-2, #004494);
     position: sticky;
     top: 0;
     z-index: 1000;
@@ -73,13 +74,13 @@ main {
 .logo { 
     color: #ffffff; 
     font-size: 20px; 
-    font-weight: bold; 
-    letter-spacing: 1px;
+    font-weight: 800; 
+    letter-spacing: 2px;
     text-decoration: none;
-    transition: opacity 0.2s;
+    font-family: "SimHei", "Heiti SC", "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", sans-serif;
 }
 
-.logo:hover { opacity: 0.8; }
+.logo:hover { text-decoration: underline; }
 
 .nav-links { 
     list-style: none; 
@@ -90,18 +91,17 @@ main {
 }
 
 .nav-links a { 
-    color: rgba(255,255,255,0.9); 
+    color: #ffffff; 
     text-decoration: none; 
     font-weight: 500; 
     font-size: 15px;
-    transition: color 0.3s, background 0.3s;
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: 0;
 }
 
 .nav-links a:hover { 
     color: #ffffff; 
-    background: rgba(255,255,255,0.15);
+    background: rgba(0,0,0,0.22);
 }
 
 /* 用户菜单 */
@@ -114,11 +114,12 @@ main {
     top: 100%;
     background: var(--white);
     list-style: none;
-    padding: 10px 0;
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    padding: 4px 0;
+    border-radius: 0;
+    border: 2px solid var(--pt-header-2, #004494);
+    box-shadow: none;
     display: none; 
-    width: 120px;
+    width: 140px;
 }
 
 .user-menu:hover .dropdown { display: block; }
@@ -210,9 +211,8 @@ html[data-theme] .nav-card {
     background: var(--white) !important;
     color: var(--text-dark) !important;
     border-color: var(--pt-border, #eee) !important;
-    box-shadow: 0 4px 15px var(--pt-shadow, rgba(0,0,0,0.05)) !important;
+    box-shadow: none !important;
 }
-html[data-theme] .login-card h2,
 html[data-theme] .nav-title {
     color: var(--pt-accent, #0056b3) !important;
 }

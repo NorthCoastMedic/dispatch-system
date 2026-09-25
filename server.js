@@ -27,7 +27,7 @@ function securityHeaders(req, res, next) {
             "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://fonts.googleapis.com https://cdnjs.cloudflare.com",
             "font-src 'self' data: https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
-            "connect-src 'self' ws: wss: https://cdn.socket.io https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://unpkg.com",
+            "connect-src 'self' ws: wss: https://api.open-meteo.com https://cdn.socket.io https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://unpkg.com",
             "object-src 'none'",
             "base-uri 'self'",
             "frame-ancestors 'self'"

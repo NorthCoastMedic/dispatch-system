@@ -323,7 +323,12 @@ async function runInstall(body, onProgress) {
     ];
     writeEnvFile(path.join(ROOT, 'apps', 'portal', '.env'), mysqlPairs);
     writeEnvFile(path.join(ROOT, 'apps', 'rms', '.env'), mysqlPairs.concat([
-        ['WECOM_ENABLED', '0'],
+        ['WECOM_ENABLED', '1'],
+        ['WECOM_CORP_ID', ''],
+        ['WECOM_AGENT_ID', ''],
+        ['WECOM_SECRET', ''],
+        ['WECOM_API_BASE', ''],
+        ['WECOM_API_KEY', ''],
         ['WECOM_WEBHOOK_URL', '']
     ]));
     writeEnvFile(path.join(ROOT, 'apps', 'rtls', '.env'), [

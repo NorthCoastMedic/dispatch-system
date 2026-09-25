@@ -81,9 +81,123 @@ async function getPublicReportPolicy() {
 async function notifyUser(db, userId, content) {
     const phone = await lookupPhoneByUserId(db, userId);
     if (!phone) {
-        console.warn('[企业微信] 用户', userId, '未绑定志愿者手机号，消息将发送但不@人');
+        console.warn('[企业微信] 用户', userId, '未绑定志愿者手机号，无法发送企业微信消息');
+        return { skipped: true, reason: '该账号未绑定志愿者手机号' };
     }
-    return notifySafe(content, __dirname, { mentionMobiles: phone ? [phone] : [] });
+    return notifySafe(content, __dirname, { mentionMobiles: [phone] });
+}
+
+/**
+ * 原「@全体」场景：不再发群，改为按绑定手机号逐个单独发送给平台内成员。
+ * 默认排除离线（status=6）成员，与广播的「全体非离线」保持一致。
+ */
+function notifyAllMembers(db, content) {
+    return (async () => {
+        try {
+            const [rows] = await db.query(
+                `SELECT DISTINCT v.phone AS phone
+                 FROM users u
+                 JOIN volunteers v ON v.id = u.volunteer_id
+                 WHERE v.phone IS NOT NULL AND TRIM(v.phone) <> ''
+                   AND (u.status IS NULL OR u.status <> 6)`
+            );
+            const mobiles = (rows || []).map((r) => String(r.phone || '').trim()).filter(Boolean);
+            if (!mobiles.length) {
+                return { skipped: true, reason: '没有可通知的成员（未绑定手机号或全部离线）' };
+            }
+            return await notifySafe(content, __dirname, { mentionMobiles: mobiles });
+        } catch (err) {
+            console.error('[企业微信] 全体通知失败:', err && err.message ? err.message : err);
+            return { ok: false, error: err.message };
+        }
+    })();
+}
+
+/* ---------- 本次指挥官（可多选，调度台设置） ---------- */
+const COMMANDER_SETTING_KEY = 'commander_user_ids';
+const COMMANDER_MAX = 50;
+
+function parseCommanderIds(raw) {
+    let list = raw;
+    if (typeof raw === 'string') {
+        try {
+            list = JSON.parse(raw || '[]');
+        } catch {
+            list = [];
+        }
+    }
+    if (!Array.isArray(list)) return [];
+    return [...new Set(list.map((v) => parseInt(v, 10)).filter((n) => Number.isInteger(n) && n > 0))];
+}
+
+/** 读取本次指挥官用户ID列表（系统设置 rms.commander_user_ids） */
+async function getCommanderIds() {
+    try {
+        const settings = await loadSettings();
+        const rms = (settings && settings.rms) || {};
+        return parseCommanderIds(rms.commander_user_ids);
+    } catch (err) {
+        console.warn('[指挥官] 读取失败:', err && err.message ? err.message : err);
+        return [];
+    }
+}
+
+/** 保存本次指挥官；有变化时写入设置日志 */
+async function setCommanderIds(db, ids, meta = {}) {
+    const before = await getCommanderIds();
+    await db.query(
+        `INSERT INTO settings (category, setting_key, setting_value)
+         VALUES ('rms', ?, ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        [COMMANDER_SETTING_KEY, JSON.stringify(ids)]
+    );
+    if (before.join(',') !== ids.join(',')) {
+        try {
+            const { writeSettingsLog } = require('../portal/lib/orgLog');
+            await writeSettingsLog(db, {
+                action: 'set_commanders',
+                actorUserId: meta.actorUserId != null ? meta.actorUserId : null,
+                actorUsername: meta.actorUsername || null,
+                category: 'rms',
+                summary: ids.length
+                    ? `设置本次指挥官 ${ids.length} 人`
+                    : '清空本次指挥官',
+                before: { commander_user_ids: before },
+                after: { commander_user_ids: ids },
+                detail: { count: ids.length },
+                ip: meta.ip || null,
+                device: meta.device || null,
+                userAgent: meta.userAgent || null
+            });
+        } catch (logErr) {
+            console.warn('[指挥官] 写设置日志失败:', logErr && logErr.message ? logErr.message : logErr);
+        }
+    }
+    return ids;
+}
+
+/**
+ * 新事件 / 事件完成：已设置指挥官时只通知指挥官，未设置时通知全体非离线成员。
+ * 指挥官全部未绑定手机号时不推送（避免误发给全体）。
+ */
+function notifyCommanderOrAll(db, content) {
+    return (async () => {
+        try {
+            const ids = await getCommanderIds();
+            if (!ids.length) return await notifyAllMembers(db, content);
+            const profiles = await lookupPhonesByUserIds(db, ids);
+            const mobiles = profiles.map((p) => p.phone).filter(Boolean);
+            if (!mobiles.length) {
+                const reason = '已设置指挥官但均未绑定手机号，未发送企业微信通知';
+                console.warn('[企业微信]', reason);
+                return { skipped: true, reason };
+            }
+            return await notifySafe(content, __dirname, { mentionMobiles: mobiles });
+        } catch (err) {
+            console.error('[企业微信] 指挥官通知失败:', err && err.message ? err.message : err);
+            return { ok: false, error: err.message };
+        }
+    })();
 }
 
 async function usernameById(db, userId) {
@@ -398,10 +512,9 @@ function createApp(options = {}) {
                 await broadcastDataUpdate();
             }
 
-            notifySafe(
-                formatNewEventMessage(title, contact, details, reportType),
-                __dirname,
-                { mentionAll: true }
+            notifyCommanderOrAll(
+                db,
+                formatNewEventMessage(title, contact, details, reportType)
             );
             writeEventLog(db, {
                 action: 'public_report',
@@ -963,7 +1076,21 @@ function createApp(options = {}) {
                 }
             }
             const [events] = await db.query('SELECT * FROM events ORDER BY priority ASC, created_at DESC');
-            io.emit('data_updated', { users, events });
+            const commanderIds = await getCommanderIds();
+            let commanders = [];
+            if (commanderIds.length) {
+                const profiles = await lookupPhonesByUserIds(db, commanderIds);
+                const byId = new Map(profiles.map((p) => [p.userId, p]));
+                commanders = commanderIds.map((id) => {
+                    const p = byId.get(id);
+                    return {
+                        id,
+                        display_name: p ? p.displayName : String(id),
+                        has_phone: !!(p && p.phone)
+                    };
+                });
+            }
+            io.emit('data_updated', { users, events, commanders });
         } catch (err) {
             console.error('广播更新失败:', err);
         }
@@ -1197,10 +1324,9 @@ function createApp(options = {}) {
                     const parsed = (contact || details)
                         ? { contact: contact || '未填写', details: details || '无', report_type: reportType }
                         : parseEventLocationDetails(description);
-                    notifySafe(
-                        formatNewEventMessage(title, parsed.contact, parsed.details, reportType || parsed.report_type || ''),
-                        __dirname,
-                        { mentionAll: true }
+                    notifyCommanderOrAll(
+                        db,
+                        formatNewEventMessage(title, parsed.contact, parsed.details, reportType || parsed.report_type || '')
                     );
                     writeEventLog(db, {
                         ...actorFromSocket(socket),
@@ -1283,10 +1409,9 @@ function createApp(options = {}) {
                     if (events[0]) {
                         const title = events[0].title || '未填写地点';
                         const { contact, details } = parseEventLocationDetails(events[0].description);
-                        notifySafe(
-                            formatCompleteEventMessage(title, contact, details),
-                            __dirname,
-                            { mentionAll: true }
+                        notifyCommanderOrAll(
+                            db,
+                            formatCompleteEventMessage(title, contact, details)
                         );
                         writeEventLog(db, {
                             ...actorFromSocket(socket),
@@ -1327,7 +1452,7 @@ function createApp(options = {}) {
                     const username = cur[0]?.username || '未知人员';
                     io.emit('emergency_alert_broadcast', { userId, username });
                     await broadcastDataUpdate();
-                    notifySafe(formatEmergencyMessage(username), __dirname, { mentionAll: true });
+                    notifyAllMembers(db, formatEmergencyMessage(username));
                     const actor = actorFromSocket(socket);
                     const summary = `${username} 激活紧急报警`;
                     writeStatusLog(db, {
@@ -1957,6 +2082,50 @@ function createApp(options = {}) {
                     if (typeof ack === 'function') {
                         ack({ success: false, message: '广播发送失败：' + (err && err.message ? err.message : '未知错误') });
                     }
+                }
+            });
+
+            /** 本次指挥官：可多选；设置后新事件与事件完成只通知指挥官 */
+            socket.on('set_commanders', async (data, ack) => {
+                if (!requireAdmin()) {
+                    if (typeof ack === 'function') ack({ success: false, message: '需要管理员权限' });
+                    return;
+                }
+                const raw = Array.isArray(data && data.userIds) ? data.userIds : [];
+                const ids = [...new Set(raw.map((v) => parseInt(v, 10)).filter((n) => Number.isInteger(n) && n > 0))];
+                if (ids.length > COMMANDER_MAX) {
+                    if (typeof ack === 'function') ack({ success: false, message: `指挥官最多 ${COMMANDER_MAX} 人` });
+                    return;
+                }
+                try {
+                    let valid = [];
+                    if (ids.length) {
+                        const placeholders = ids.map(() => '?').join(',');
+                        const [rows] = await db.query(`SELECT id FROM users WHERE id IN (${placeholders})`, ids);
+                        const found = new Set(rows.map((r) => Number(r.id)));
+                        valid = ids.filter((id) => found.has(id));
+                    }
+                    await setCommanderIds(db, valid, actorFromSocket(socket));
+                    await broadcastDataUpdate();
+                    let noPhone = [];
+                    if (valid.length) {
+                        const profiles = await lookupPhonesByUserIds(db, valid);
+                        noPhone = profiles.filter((p) => !p.phone).map((p) => p.displayName);
+                    }
+                    if (typeof ack === 'function') {
+                        ack({
+                            success: true,
+                            commanders: valid,
+                            no_phone: noPhone,
+                            message: valid.length
+                                ? `本次指挥官 ${valid.length} 人`
+                                    + (noPhone.length ? `；${noPhone.join('、')} 未绑定手机号，收不到企业微信通知` : '')
+                                : '已清空指挥官：新事件与事件完成将通知全体非离线成员'
+                        });
+                    }
+                } catch (err) {
+                    console.error('设置指挥官失败:', err);
+                    if (typeof ack === 'function') ack({ success: false, message: '设置指挥官失败' });
                 }
             });
         });

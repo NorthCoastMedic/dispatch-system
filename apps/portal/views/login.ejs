@@ -1,19 +1,22 @@
 <%- include('partials/header') %>
 <style>
-    body { background-color: var(--bg-color, #f4f7f6); }
-    .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 75vh; }
-    .login-card { background: var(--white, #fff); padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px var(--pt-shadow, rgba(0,0,0,0.08)); width: 100%; max-width: 400px; text-align: center; }
-    .login-card h2 { color: var(--pt-accent, #0056b3); margin-bottom: 30px; font-weight: bold; letter-spacing: 1px; }
-    .login-input { width: 100%; padding: 15px; margin-bottom: 20px; border: 1px solid var(--pt-border, #ddd); border-radius: 8px; font-size: 15px; box-sizing: border-box; outline: none; transition: border 0.3s; background: var(--pt-input-bg, #fff); color: var(--text-dark, #333); }
-    .login-input:focus { border-color: var(--pt-accent, #0056b3); }
-    .login-btn { width: 100%; padding: 15px; background: var(--primary-color, #0056b3); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
-    .login-btn:hover { background: var(--primary-hover, #004494); }
-    .error-msg { background: #ffe6e6; color: #dc3545; padding: 10px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+    body { background-color: var(--pt-bg, #dfe3e8); }
+    .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 70vh; padding: 20px 14px; }
+    .login-card { background: var(--pt-panel, #fff); border: 1px solid var(--pt-border-soft, #b9c1ca); border-radius: 0; box-shadow: none !important; width: 100%; max-width: 380px; padding: 0; text-align: left; }
+    .login-card h2 { margin: 0; padding: 10px 16px; background: var(--pt-header, #0056b3); color: #fff; font-size: 15px; font-weight: bold; letter-spacing: 1px; }
+    .login-body { padding: 20px 18px 22px; }
+    .login-input { width: 100%; padding: 10px 12px; margin-bottom: 14px; border: 1px solid var(--pt-border-soft, #8a8a8a); border-radius: 0; font-size: 14px; box-sizing: border-box; outline: none; background: var(--pt-input-bg, #fff); color: var(--pt-text, #1a1a1a); font-family: inherit; }
+    .login-input:focus { outline: 1px solid var(--pt-header, #0056b3); }
+    .login-btn { width: 100%; padding: 11px; background: var(--pt-header, #0056b3); color: #fff; border: 1px solid var(--pt-header, #0056b3); border-radius: 0; font-size: 15px; font-weight: bold; cursor: pointer; font-family: inherit; }
+    .login-btn:hover { filter: brightness(1.08); }
+    .error-msg { background: #fdf2f2; color: #b91c1c; border: 1px solid #e0b4b4; padding: 8px 10px; border-radius: 0; margin-bottom: 16px; font-size: 13px; }
+    @media (max-width: 400px) { .login-card { max-width: none; } }
 </style>
 <div class="login-wrapper">
     <div class="login-card">
         <h2><%= branding.login_title %></h2>
-        <% if (error) { %><div class="error-msg">✖ <%= error %></div><% } %>
+        <div class="login-body">
+        <% if (error) { %><div class="error-msg"><%= error %></div><% } %>
         <form method="POST">
             <% if (typeof redirect !== 'undefined' && redirect) { %>
             <input type="hidden" name="redirect" value="<%= redirect %>">
@@ -22,6 +25,7 @@
             <input type="password" name="password" class="login-input" placeholder="请输入密码" required>
             <button type="submit" class="login-btn">验证并登录</button>
         </form>
+        </div>
     </div>
 </div>
 <%- include('partials/footer') %>

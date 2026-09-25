@@ -1,92 +1,93 @@
 <%- include('partials/header') %>
 <style>
-    .settings-wrap { max-width: 980px; margin: 28px auto; padding: 0 20px 40px; }
-    .settings-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .settings-wrap { flex:1; width:100%; max-width:none; margin:0; padding:12px 14px 16px; box-sizing:border-box; background: var(--pt-bg, #dfe3e8); }
+    .settings-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; align-items: start; }
     .settings-tabs {
-        background: #fff; border: 1px solid #eee; border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 10px; position: sticky; top: 16px;
+        background: var(--pt-panel, #fff); border: 1px solid var(--pt-border-soft, #b9c1ca); border-radius: 0;
+        box-shadow: none; padding: 0; position: sticky; top: 10px;
     }
     .settings-tab {
-        display: block; width: 100%; text-align: left; border: 1px solid transparent;
-        background: transparent; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px;
-        font-size: 14px; font-weight: 700; color: #445; cursor: pointer;
+        display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--pt-border, #d6dae0);
+        background: transparent; border-radius: 0; padding: 10px 12px; margin: 0;
+        font-size: 13px; font-weight: 700; color: var(--pt-text-2, #445); cursor: pointer; font-family: inherit;
     }
-    .settings-tab:hover { background: #f4f8fc; }
-    .settings-tab.active { background: #e8f1fb; color: #0056b3; border-color: #c9ddf5; }
-    .settings-tab small { display: block; font-size: 11px; font-weight: 500; color: #888; margin-top: 2px; }
+    .settings-tab:last-child { border-bottom: 0; }
+    .settings-tab:hover { background: var(--pt-hover, #eef2f7); }
+    .settings-tab.active { background: var(--pt-header, #0056b3); color: #fff; border-color: var(--pt-header, #0056b3); }
+    .settings-tab small { display: block; font-size: 11px; font-weight: 500; color: var(--pt-muted, #888); margin-top: 2px; }
+    .settings-tab.active small { color: #dbe8f8; }
     .settings-panel { display: none; }
     .settings-panel.active { display: block; }
-    .settings-card { background: #fff; border: 1px solid #eee; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 22px; }
-    .settings-card h3 { margin: 0 0 6px; color: #0056b3; font-size: 18px; }
-    .settings-card .cat-desc { margin: 0 0 16px; color: #777; font-size: 13px; }
-    .subtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .settings-card { background: var(--pt-panel, #fff); border: 1px solid var(--pt-border-soft, #b9c1ca); border-radius: 0; box-shadow: none; padding: 16px; }
+    .settings-card h3 { margin: 0 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--pt-border, #c2c8d0); color: var(--pt-text, #1f3a63); font-size: 16px; }
+    .settings-card .cat-desc { margin: 8px 0 14px; color: var(--pt-muted, #777); font-size: 12px; }
+    .subtabs { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 14px; border-bottom: 1px solid var(--pt-border-soft, #b9c1ca); }
     .subtab {
-        border: 1px solid #dbe5f0; background: #f8fafc; color: #445; border-radius: 999px;
-        padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+        border: 1px solid transparent; border-bottom: 0; background: transparent; color: var(--pt-text-2, #445); border-radius: 0;
+        padding: 7px 13px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
     }
-    .subtab.active { background: #0056b3; border-color: #0056b3; color: #fff; }
+    .subtab:hover { background: var(--pt-hover, #eef2f7); }
+    .subtab.active { background: var(--pt-header, #0056b3); border-color: var(--pt-header, #0056b3); color: #fff; }
     .settings-section { display: none; margin-top: 4px; }
     .settings-section.active { display: block; }
-    .settings-section h4 { margin: 0 0 6px; font-size: 16px; color: #222; }
-    .settings-section .sec-desc { margin: 0 0 14px; color: #888; font-size: 12px; line-height: 1.5; }
-    .sla-group { background: #f8fafc; border: 1px solid #e8eef5; border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
-    .sla-group h5 { margin: 0 0 12px; font-size: 14px; color: #0056b3; }
-    .sla-rows { display: flex; flex-direction: column; gap: 10px; }
-    .sla-row { display: grid; grid-template-columns: 88px 1fr 1fr 1fr; gap: 10px; align-items: end; }
-    .sla-row .prio-label { font-size: 13px; font-weight: 700; color: #444; padding-bottom: 10px; }
-    .field { margin-bottom: 16px; }
+    .settings-section h4 { margin: 0 0 6px; font-size: 14px; color: var(--pt-text, #222); }
+    .settings-section .sec-desc { margin: 0 0 12px; color: var(--pt-muted, #888); font-size: 12px; line-height: 1.5; }
+    .sla-group { background: var(--pt-panel-2, #f8fafc); border: 1px solid var(--pt-border, #e8eef5); border-radius: 0; padding: 12px 14px; margin-bottom: 10px; }
+    .sla-group h5 { margin: 0 0 10px; font-size: 13px; color: var(--pt-text, #0056b3); }
+    .sla-rows { display: flex; flex-direction: column; gap: 8px; }
+    .sla-row { display: grid; grid-template-columns: 80px 1fr 1fr 1fr; gap: 8px; align-items: end; }
+    .sla-row .prio-label { font-size: 13px; font-weight: 700; color: var(--pt-text-2, #444); padding-bottom: 8px; }
+    .field { margin-bottom: 14px; }
     .field.compact { margin-bottom: 0; }
-    .field label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--pt-muted, #666); margin-bottom: 4px; }
     .field input, .field textarea, .field select {
-        width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #ddd;
-        border-radius: 8px; font-size: 14px; outline: none; background: #fff;
+        width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid var(--pt-border-soft, #8a8a8a);
+        border-radius: 0; font-size: 13px; outline: none; background: var(--pt-input-bg, #fff); color: var(--pt-text, #1a1a1a); font-family: inherit;
     }
-    .field input:focus, .field textarea:focus, .field select:focus { border-color: #0056b3; }
+    .field input:focus, .field textarea:focus, .field select:focus { outline: 1px solid var(--pt-header, #0056b3); }
     .field-with-unit { position: relative; }
     .field-with-unit input { padding-right: 42px; }
     .field-with-unit .unit {
         position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-        font-size: 12px; color: #999; pointer-events: none;
+        font-size: 12px; color: var(--pt-muted, #999); pointer-events: none;
     }
     .settings-actions {
-        display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-        margin-top: 16px; background: #fff; border: 1px solid #eee; border-radius: 12px;
-        padding: 14px 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px;
+        background: var(--pt-panel-2, #f4f5f7); border: 1px solid var(--pt-border-soft, #b9c1ca); border-radius: 0; padding: 12px 14px; box-shadow: none;
     }
     .settings-actions .btn-save {
-        background: #0056b3; color: #fff; border: none; border-radius: 8px;
-        padding: 12px 22px; font-size: 15px; font-weight: bold; cursor: pointer;
+        background: var(--pt-header, #0056b3); color: #fff; border: 1px solid var(--pt-header, #0056b3); border-radius: 0;
+        padding: 9px 20px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: inherit;
     }
-    .settings-actions .btn-save:hover { background: #004494; }
-    .settings-msg { font-size: 14px; }
+    .settings-actions .btn-save:hover { filter: brightness(1.08); }
+    .settings-msg { font-size: 13px; }
     .settings-msg.ok { color: #198754; }
     .settings-msg.err { color: #dc3545; }
-    .settings-hint { font-size: 12px; color: #888; margin-top: 12px; line-height: 1.5; }
+    .settings-hint { font-size: 12px; color: var(--pt-muted, #888); margin-top: 10px; line-height: 1.5; }
     .nav-editor-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
     .nav-editor-toolbar button {
-        border: 1px solid #d0d7e2; background: #f8fafc; border-radius: 8px;
-        padding: 8px 12px; font-size: 13px; font-weight: 700; cursor: pointer; color: #334;
+        border: 1px solid var(--pt-border-soft, #8a8a8a); background: var(--pt-panel, #f8fafc); border-radius: 0;
+        padding: 7px 12px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--pt-text-2, #334); font-family: inherit;
     }
-    .nav-editor-toolbar button:hover { background: #eef4fb; }
-    .nav-item-card {
-        border: 1px solid #e5eaf1; border-radius: 10px; padding: 12px; margin-bottom: 10px; background: #fbfdff;
-    }
+    .nav-editor-toolbar button:hover { background: var(--pt-hover, #eef4fb); }
+    .nav-item-card { border: 1px solid var(--pt-border, #e5eaf1); border-radius: 0; padding: 12px; margin-bottom: 10px; background: var(--pt-panel-2, #fbfdff); }
     .nav-item-hd { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .nav-item-hd .idx { font-size: 12px; font-weight: 700; color: #0056b3; }
+    .nav-item-hd .idx { font-size: 12px; font-weight: 700; color: var(--pt-accent, #0056b3); }
     .nav-item-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .nav-item-actions button {
-        border: 1px solid #d5dde8; background: #fff; border-radius: 6px;
-        padding: 4px 8px; font-size: 12px; cursor: pointer; color: #445;
+        border: 1px solid var(--pt-border-soft, #d5dde8); background: var(--pt-panel, #fff); border-radius: 0;
+        padding: 5px 9px; font-size: 12px; cursor: pointer; color: var(--pt-text-2, #445); font-family: inherit;
     }
     .nav-item-actions button.danger { color: #b42318; border-color: #f0c2c0; }
     .nav-grid-fields { display: grid; grid-template-columns: 90px 1fr 1fr; gap: 10px; }
     .nav-grid-fields-2 { display: grid; grid-template-columns: 1fr 140px 140px; gap: 10px; margin-top: 10px; }
-    .nav-checks { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: #445; }
+    .nav-checks { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--pt-text-2, #445); }
     .nav-checks label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
     @media (max-width: 860px) {
+        .settings-wrap { padding: 10px; }
         .settings-layout { grid-template-columns: 1fr; }
-        .settings-tabs { position: static; display: flex; gap: 8px; overflow-x: auto; }
-        .settings-tab { white-space: nowrap; margin-bottom: 0; min-width: max-content; }
+        .settings-tabs { position: static; display: flex; gap: 0; overflow-x: auto; }
+        .settings-tab { white-space: nowrap; margin: 0; min-width: max-content; border-bottom: 0; border-right: 1px solid var(--pt-border, #d6dae0); }
         .settings-tab small { display: none; }
         .sla-row { grid-template-columns: 1fr; }
         .sla-row .prio-label { padding-bottom: 0; }
@@ -95,9 +96,9 @@
 </style>
 <main>
     <div class="settings-wrap">
-        <div class="flex-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap;">
-            <h2 style="margin:0;color:#0056b3;">系统设置</h2>
-            <a href="dashboard.php" class="btn" style="background:#6c757d;color:white;text-decoration:none;padding:8px 14px;border-radius:8px;font-size:14px;">返回导航页</a>
+        <div class="flex-header" style="display:flex;justify-content:space-between;align-items:center;margin:0 0 12px;gap:10px;flex-wrap:wrap;padding:8px 12px;background:var(--pt-panel-2,#e9ecf0);border:1px solid var(--pt-border-soft,#b9c1ca);">
+            <h2 style="margin:0;color:var(--pt-text,#1f3a63);font-size:16px;">系统设置</h2>
+            <a href="dashboard.php" class="btn" style="background:var(--pt-panel,#e9ecf0);color:var(--pt-text,#1a1a1a);border:1px solid var(--pt-border-soft,#8a8a8a);text-decoration:none;padding:6px 14px;font-size:13px;font-weight:700;">返回导航页</a>
         </div>
 
         <form id="system-settings-form" novalidate>
@@ -328,9 +329,29 @@
                                         value="<%= val %>"
                                         placeholder="<%= field.placeholder || '' %>"
                                         <% if (fieldKey === 'wecom_webhook_url' || fieldKey === 'rms_firstaid_form_url') { %>inputmode="url" autocomplete="off"<% } %>
+                                        <% if (fieldKey === 'wecom_app_corp_id' || fieldKey === 'wecom_app_agent_id' || fieldKey === 'wecom_app_secret') { %>autocomplete="off" spellcheck="false"<% } %>
+                                        <% if (fieldKey === 'commander_user_ids') { %>readonly data-skip-submit="1"<% } %>
                                     >
+                                    <% if (fieldKey === 'wecom_app_corp_id') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">企业微信后台 → 我的企业 → 企业信息 → 企业ID（CorpID）</p>
+                                    <% } %>
+                                    <% if (fieldKey === 'wecom_app_agent_id') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">企业微信后台 → 应用管理 → 自建 → 应用 → AgentId（数字）</p>
+                                    <% } %>
+                                    <% if (fieldKey === 'wecom_app_secret') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">企业微信后台 → 应用管理 → 自建 → 应用 → Secret（保存后仅管理员可见）</p>
+                                    <% } %>
                                     <% if (fieldKey === 'wecom_webhook_url') { %>
-                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">企业微信群机器人 Webhook 完整 URL</p>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">已停用：系统不再向群机器人发消息，此值仅作留档</p>
+                                    <% } %>
+                                    <% if (fieldKey === 'wecom_api_base') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">留空＝直连 qyapi.weixin.qq.com；填云服务器反代地址后，企业微信看到的出口 IP 是云服务器固定 IP（需把该 IP 加入「企业可信IP」）</p>
+                                    <% } %>
+                                    <% if (fieldKey === 'wecom_api_key') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">可选：填写后请求带 X-Proxy-Key 头，供反代校验来源（仅管理员可见）</p>
+                                    <% } %>
+                                    <% if (fieldKey === 'commander_user_ids') { %>
+                                    <p style="margin:6px 0 0;font-size:12px;color:#888;">一般不用手改：请在调度台「指挥官」中勾选人员（JSON 用户ID数组，如 [2,5]）</p>
                                     <% } %>
                                     <% if (fieldKey === 'rms_firstaid_form_url') { %>
                                     <p style="margin:6px 0 0;font-size:12px;color:#888;">成员终端「急救表单」按钮跳转地址</p>
@@ -432,7 +453,7 @@
                         '</div>' +
                     '</div>' +
                     '<div class="nav-grid-fields">' +
-                        '<div class="field compact"><label>图标</label><input data-f="icon" value="' + esc(item.icon) + '" maxlength="16" placeholder="如 📍"></div>' +
+                        '<div class="field compact"><label>图标</label><input data-f="icon" value="' + esc(item.icon) + '" maxlength="16" placeholder="可留空"></div>' +
                         '<div class="field compact"><label>名称</label><input data-f="title" value="' + esc(item.title) + '" maxlength="80" required></div>' +
                         '<div class="field compact"><label>简介</label><input data-f="desc" value="' + esc(item.desc) + '" maxlength="200"></div>' +
                     '</div>' +
@@ -605,6 +626,7 @@
         syncNavHidden();
         var settings = {};
         form.querySelectorAll('input[data-cat][data-key], textarea[data-cat][data-key], select[data-cat][data-key]').forEach(function (input) {
+            if (input.getAttribute('data-skip-submit') === '1') return;
             var cat = input.getAttribute('data-cat');
             var key = input.getAttribute('data-key');
             if (!settings[cat]) settings[cat] = {};

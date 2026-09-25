@@ -26,18 +26,17 @@
         .dropdown {
             opacity: 0;
             visibility: hidden;
-            transition: all 0.3s ease;
             position: absolute;
             top: 100%;
             right: 0;
             background: var(--pt-panel, #fff);
-            border: 1px solid var(--pt-border, #ddd);
-            border-radius: 8px;
-            box-shadow: 0 4px 10px var(--pt-shadow, rgba(0,0,0,0.1));
-            padding: 10px 0;
-            margin-top: 5px;
+            border: 2px solid var(--pt-header-2, #004494);
+            border-radius: 0;
+            box-shadow: none;
+            padding: 4px 0;
+            margin-top: 0;
             z-index: 1000;
-            min-width: 120px;
+            min-width: 140px;
         }
         .user-menu:hover .dropdown { opacity: 1; visibility: visible; }
         .dropdown.show { opacity: 1; visibility: visible; }
@@ -59,25 +58,54 @@
             margin: 0;
             padding: 0;
         }
+        .hnav-left { display: flex; align-items: center; gap: 20px; min-width: 0; flex-wrap: wrap; }
+        .hnav-status { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--pt-toolbar-text, #fff); white-space: nowrap; }
+        .hnav-status .clk { font-family: Consolas, "Courier New", monospace; font-size: 15px; font-weight: bold; color: var(--pt-toolbar-text, #fff); letter-spacing: 1px; }
+        .hnav-user { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--pt-toolbar-text, #fff); white-space: nowrap; }
+        .hnav-user .uname { color: var(--pt-toolbar-text, #fff); }
+        .hnav-user a, .hnav-user .link-btn { color: var(--pt-toolbar-text, #fff); text-decoration: none; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; }
+        .hnav-user a:hover, .hnav-user .link-btn:hover { text-decoration: underline; }
+        .site-header .rms-theme-toggle { border: 0; background: none; border-radius: 0; padding: 0; min-height: 0; gap: 0; font: inherit; font-size: 13px; font-weight: normal; letter-spacing: 0; color: var(--pt-toolbar-text, #fff); }
+        .site-header .rms-theme-toggle:hover { filter: none; text-decoration: underline; }
+        .site-header .rms-theme-toggle-ico { display: none; }
+        @media (max-width: 900px) {
+            .nav-container { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 0; padding: 8px 12px; }
+            .hnav-left { flex: 1 1 100%; gap: 2px 0; }
+            .logo { flex: 1 1 100%; font-size: 18px; }
+            .hnav-status { flex: 1 1 100%; gap: 14px; font-size: 12px; }
+            .hnav-status .clk { font-size: 13px; letter-spacing: 0; }
+            .nav-links { flex: 1 1 100%; width: auto; justify-content: flex-start; gap: 16px; }
+            .hnav-user { gap: 16px; font-size: 12px; }
+            .nav-links a { background: none; border-radius: 0; padding: 0; text-align: left; font-size: 12px; }
+        }
+        @media (max-width: 400px) {
+            .hnav-status { gap: 10px; font-size: 11px; }
+            .hnav-status .clk { font-size: 12px; }
+        }
     </style>
 </head>
 <body>
     <header class="site-header">
         <nav class="nav-container">
-            <a href="dashboard.php" class="logo"><%= branding.internal_platform_name %></a>
+            <div class="hnav-left">
+                <a href="dashboard.php" class="logo"><%= branding.internal_platform_name %></a>
+                <% if (typeof showClock !== 'undefined' && showClock) { %>
+                    <span class="hnav-status">
+                        <span id="wx">天气：定位中…</span>
+                        <span class="clk" id="clk">--:--:--</span>
+                        <span id="dt">----/--/--</span>
+                    </span>
+                <% } %>
+            </div>
             <ul class="nav-links">
                 <li class="rms-theme-toggle-wrap" data-rms-theme-slot></li>
                 <% if (typeof user !== 'undefined' && user) { %>
-                    <li class="user-menu" id="userMenu">
-                        <span class="user-name" onclick="toggleDropdown(event)">👤 <%= user.username || '队员' %> ▼</span>
-                        <ul class="dropdown" id="dropdownMenu">
-                            <li><a href="/form_pass.php">🔑 修改密码</a></li>
-                            <li>
-                                <form method="POST" action="/logout.php" style="margin:0;">
-                                    <button type="submit" class="logout-menu-btn">🚪 安全退出</button>
-                                </form>
-                            </li>
-                        </ul>
+                    <li class="hnav-user">
+                        <span class="uname"><%= user.username || '队员' %><% if (user.role === 'admin') { %>（管理员）<% } %></span>
+                        <a href="/form_pass.php">修改密码</a>
+                        <form method="POST" action="/logout.php" style="margin:0;">
+                            <button type="submit" class="link-btn">退出</button>
+                        </form>
                     </li>
                 <% } else { %>
                     <li><a href="<%= branding.public_site_url %>" target="_blank" rel="noopener noreferrer"><%= branding.public_site_label %></a></li>

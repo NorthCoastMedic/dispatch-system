@@ -44,7 +44,7 @@ async function confirmLogRetentionChange(detail) {
     if (!isInteractive()) {
         return {
             ok: false,
-            error: '当前没有终端（请在 Windows CMD 或 Linux 终端前台运行），无法确认日志保留修改。'
+            error: '当前没有交互终端（请在 Windows CMD 或 Linux 终端前台运行），无法确认日志保留修改。'
         };
     }
     busy = true;

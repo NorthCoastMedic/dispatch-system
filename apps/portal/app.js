@@ -348,7 +348,7 @@ app.get('/dashboard.php', requireLogin, async (req, res) => {
             if (nm) welcomeName = nm;
         } catch (_) { /* ignore */ }
     }
-    res.render('dashboard', { user, navItems, welcomeName });
+    res.render('dashboard', { user, navItems, welcomeName, showClock: true });
 });
 
 app.get('/login_logs.php', requireAdmin, async (req, res) => {

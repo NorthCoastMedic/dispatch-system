@@ -125,7 +125,7 @@ const DEFAULT_NAV_ITEMS = [
         id: 'login_logs',
         icon: '📜',
         title: '操作日志',
-        desc: '用于审计系统更改、用户操作的日志',
+        desc: '登录、事件、设置、档案、调度消息与状态，只读。',
         href: '/login_logs.php',
         target: '_self',
         admin_only: true,
@@ -181,7 +181,7 @@ function parseNavItems(raw) {
         }
         if (n.id === 'login_logs' && n.title === '登录日志') {
             n.title = '操作日志';
-            n.desc = '用于审计系统更改、用户操作的日志';
+            n.desc = '登录、事件、设置、档案、调度消息与状态，只读。';
         }
         return n;
     });
@@ -433,14 +433,60 @@ const CATEGORY_DEFS = {
                     }
                 }
             },
+            command: {
+                label: '本次指挥官',
+                description: '在调度台「指挥官」里设置本次任务的指挥官（可多选）。设置后，新事件与事件完成的通知只发给指挥官；未设置时仍通知全体非离线成员。紧急报警不受影响。',
+                fields: {
+                    commander_user_ids: {
+                        label: '指挥官（用户ID 列表）',
+                        type: 'text',
+                        optional: true,
+                        placeholder: '一般不用手改：请在调度台「指挥官」中勾选（JSON 数组，如 [2,5]）',
+                        default: '[]'
+                    }
+                }
+            },
             wecom: {
                 label: '企业微信通知',
-                description: '群机器人 Webhook。用于指派、单呼、广播等 @ 通知。留空则回退到 apps/rms/.env 的 WECOM_WEBHOOK_URL。',
+                description: '自建应用消息（企业微信 API message/send）。指派、取消指派、单呼、广播、新事件、事件完成与紧急报警都按「队员档案绑定手机号 → 企业微信成员」单独发送给个人，不再发到群机器人。需在企业微信后台创建自建应用，并把本服务器 IP 加入可信企业 IP。',
                 fields: {
+                    wecom_app_corp_id: {
+                        label: '企业ID CorpID',
+                        type: 'text',
+                        placeholder: '企业微信后台 → 我的企业 → 企业信息 → 企业ID',
+                        default: ''
+                    },
+                    wecom_app_agent_id: {
+                        label: '自建应用 AgentId',
+                        type: 'text',
+                        placeholder: '企业微信后台 → 应用管理 → 自建 → 应用 → AgentId（数字）',
+                        default: ''
+                    },
+                    wecom_app_secret: {
+                        label: '自建应用 Secret',
+                        type: 'text',
+                        placeholder: '企业微信后台 → 应用管理 → 自建 → 应用 → Secret',
+                        default: ''
+                    },
+                    wecom_api_base: {
+                        label: '接口根地址（反代 / 固定出口IP）',
+                        type: 'text',
+                        optional: true,
+                        placeholder: '如 https://orgstaff.pqzou.xyz/wecom-api-xxxx（留空=直连官方域名）',
+                        default: ''
+                    },
+                    wecom_api_key: {
+                        label: '反代校验密钥（可选）',
+                        type: 'text',
+                        optional: true,
+                        placeholder: '填写后请求带 X-Proxy-Key 头，配合 nginx 校验来源',
+                        default: ''
+                    },
                     wecom_webhook_url: {
-                        label: 'WECOM_WEBHOOK_URL（群机器人地址）',
+                        label: '群机器人 Webhook（已停用）',
                         type: 'url',
-                        placeholder: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...',
+                        optional: true,
+                        placeholder: '已停用：系统不再向群发送消息，此值仅作留档',
                         default: ''
                     }
                 }
@@ -716,15 +762,26 @@ function validateSettings(settings) {
     }
 
     const rms = settings.rms || {};
-    const wecomUrl = String(rms.wecom_webhook_url || '').trim();
-    if (wecomUrl) {
+    // 企业微信自建应用：企业ID / AgentId / Secret 需同时填写
+    const wecomCorp = String(rms.wecom_app_corp_id || '').trim();
+    const wecomAgent = String(rms.wecom_app_agent_id || '').trim();
+    const wecomSecret = String(rms.wecom_app_secret || '').trim();
+    const wecomFilled = [wecomCorp, wecomAgent, wecomSecret].filter(Boolean).length;
+    if (wecomFilled > 0 && wecomFilled < 3) {
+        errors.push('企业微信自建应用：企业ID / AgentId / Secret 需同时填写');
+    }
+    if (wecomAgent && !/^\d+$/.test(wecomAgent)) {
+        errors.push('企业微信 AgentId 必须是数字');
+    }
+    const wecomApiBase = String(rms.wecom_api_base || '').trim();
+    if (wecomApiBase) {
         try {
-            const u = new URL(wecomUrl);
+            const u = new URL(wecomApiBase);
             if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-                errors.push('企业微信 Webhook 网址必须以 http:// 或 https:// 开头');
+                errors.push('企业微信接口根地址必须以 http:// 或 https:// 开头');
             }
         } catch {
-            errors.push('企业微信 Webhook 网址格式无效');
+            errors.push('企业微信接口根地址格式无效');
         }
     }
     const firstaidOn = String(rms.rms_firstaid_form_enabled || '1') === '1';
@@ -1034,9 +1091,9 @@ async function detectLogsRetentionChange(incoming) {
     return { changed: diffs.length > 0, diffs, current, merged };
 }
 
-const SECRET_SETTING_KEYS = new Set(['wecom_webhook_url', 'public_report_token']);
+const SECRET_SETTING_KEYS = new Set(['wecom_webhook_url', 'wecom_app_secret', 'wecom_api_key', 'public_report_token']);
 
-/** 非管理员读接口去掉密钥，页面功能仍可用（品牌/导航不依赖 Webhook） */
+/** 非管理员读接口去掉密钥，页面功能仍可用（品牌/导航不依赖企业微信配置） */
 function redactSettingsForClient(settings, includeSecrets) {
     if (includeSecrets) return settings;
     let out;

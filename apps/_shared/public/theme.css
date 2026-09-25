@@ -104,15 +104,47 @@ html[data-theme="light"] .rms-theme-toggle-ico {
     box-shadow: inset -0.28rem 0 0 0 currentColor;
 }
 
-/* 顶栏内切换钮与导航按钮对齐 */
+/* 顶栏内切换钮：与导航按钮同款纯文字 */
 .top-nav .rms-theme-toggle,
-.nav-links .rms-theme-toggle,
-.header-right .rms-theme-toggle {
+.nav-links .rms-theme-toggle {
     min-height: 2rem;
-    border-radius: 16px;
-    font-size: 12px;
+    padding: 0 0.5rem;
+    border: 0;
+    background: none;
+    border-radius: 0;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    gap: 0;
+}
+.top-nav .rms-theme-toggle:hover,
+.nav-links .rms-theme-toggle:hover {
+    filter: none;
+    background: rgba(0, 0, 0, 0.22);
+}
+.top-nav .rms-theme-toggle-ico,
+.nav-links .rms-theme-toggle-ico {
+    display: none;
+}
+.header-right .rms-theme-toggle {
+    border: 0;
+    background: none;
+    border-radius: 0;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    gap: 0;
+}
+.header-right .rms-theme-toggle:hover {
+    filter: none;
+    text-decoration: underline;
+}
+.header-right .rms-theme-toggle-ico {
+    display: none;
 }
 .site-header .rms-theme-toggle {
     min-height: 2rem;
-    border-radius: 16px;
+    border-radius: 0;
 }

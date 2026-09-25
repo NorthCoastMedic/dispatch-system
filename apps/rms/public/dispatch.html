@@ -56,6 +56,7 @@
                 <button id="btn-admin-add-event" type="button" class="dc-toolbar-btn is-primary">新增事件</button>
                 <button id="btn-batch-assign" type="button" class="dc-toolbar-btn" title="将多名队员指派到同一事件">批量指派</button>
                 <button id="btn-broadcast" type="button" class="dc-toolbar-btn" title="向全体或指定分区发送通知">广播</button>
+                <button id="btn-commanders" type="button" class="dc-toolbar-btn" title="设置本次指挥官：设置后新事件与事件完成只通知指挥官">指挥官</button>
                 <button id="btn-export-activity-summary" type="button" class="dc-toolbar-btn" title="导出本场事件汇总PDF">导出本场汇总</button>
                 <div data-rms-theme-slot class="rms-theme-toggle-wrap"></div>
                 <div class="relative ml-1">
@@ -77,6 +78,7 @@
             <section class="dc-panel">
                 <div class="dc-panel-hd">
                     <h2>人员状态</h2>
+                    <span id="commander-summary" class="dc-hint" title="本次指挥官（调度台「指挥官」中设置）">指挥官：未设置</span>
                 </div>
                 <div id="personnel-agency-filters" class="flex flex-wrap gap-1.5">
                     <button type="button" data-agency="" class="agency-filter-btn px-2.5 py-1 text-xs font-bold bg-[#0056b3] text-white">全部</button>
@@ -288,6 +290,29 @@
                 <button type="button" id="btn-close-broadcast-history" class="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-sm font-bold">关闭</button>
             </div>
             <div id="broadcast-history-list" class="space-y-2 overflow-y-auto flex-1 min-h-[200px] text-sm"></div>
+        </div>
+    </div>
+
+    <!-- 本次指挥官（可多选） -->
+    <div id="modal-commanders" class="fixed inset-0 bg-black/50 z-[54] hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] flex flex-col">
+            <h3 class="text-lg font-bold text-gray-800 mb-1 shrink-0">本次指挥官</h3>
+            <p class="text-xs text-gray-500 mb-3 shrink-0">
+                可多选。设置后「新事件」与「事件完成」的企业微信通知只发给指挥官；全部取消则通知全体非离线成员。紧急报警始终通知全体。
+            </p>
+            <div class="flex items-center justify-between mb-1 shrink-0">
+                <span class="text-xs font-semibold text-gray-500">选择人员</span>
+                <div class="flex gap-2">
+                    <button type="button" id="btn-commander-pick-all" class="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold">全选</button>
+                    <button type="button" id="btn-commander-pick-none" class="text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-semibold">清空</button>
+                </div>
+            </div>
+            <div id="commander-user-list" class="space-y-1 overflow-y-auto max-h-[45vh] border rounded-lg p-2 bg-gray-50"></div>
+            <p id="commanders-msg" class="text-xs mt-2 min-h-[16px]"></p>
+            <div class="flex gap-3 shrink-0 mt-2">
+                <button type="button" id="btn-close-commanders" class="flex-1 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl text-sm">取消</button>
+                <button type="button" id="btn-confirm-commanders" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm shadow">保存</button>
+            </div>
         </div>
     </div>
 

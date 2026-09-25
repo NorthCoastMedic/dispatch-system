@@ -12,7 +12,6 @@
 - **RTLS**：GPS 大屏 + 设备管理（默认适配OwnTracks MQTT）
 - **WBGT**：湿球黑球温度大屏（MQTT 订阅探头数据）
 - **首次安装**：显示安装页面，在第一次安装结束后写入lock文件
-- **系统日志**：系统用户的部分操作会写入日志，管理员可以通过页面查询
 
 
 ## WBGT 探头
@@ -27,6 +26,51 @@ W25.3C:T28.1C:T32.4C:H42.0%LR
 WBGT大屏默认看传感器 `1`。`MQTT_BROKER` 必须和转发器指向同一台 broker。
 
 RTLS 订阅的是 OwnTracks（默认 `owntracks/#`），和 WBGT 主题分开。
+
+
+## 企业微信通知（自建应用）
+
+RMS 的事件指派、取消指派、单呼、广播、新事件、事件完成与紧急报警都改用
+**企业微信自建应用消息**（[message/send](https://developer.work.weixin.qq.com/document/path/90236)）
+单独发送给个人，不再使用群机器人 Webhook（群机器人配置已停用，仅作留档）。
+
+1. 企业微信后台创建自建应用，记录 `AgentId` 与 `Secret`；在「我的企业 → 企业信息」取 `CorpID`。
+2. 把本服务器出口 IP 加入「我的企业 → 安全 → 可信企业 IP」（应用消息接口要求）。
+3. 门户「系统设置 → RMS → 企业微信通知」填写 企业ID / AgentId / Secret；
+   也可写入 `apps/rms/.env` 的 `WECOM_CORP_ID`、`WECOM_AGENT_ID`、`WECOM_SECRET`。
+
+
+### 家宽动态 IP 与反向代理（errcode 60020）
+
+自建应用接口要求调用方的出口 IP 在「企业可信IP」白名单内。家宽是动态 IP，一变就报
+`60020 not allow to access from your ip`。若有一台固定公网 IP 的云服务器（例如用于备案 / 隐藏端口的反代机），
+可让企业微信接口调用从云服务器出去，白名单里只填云服务器 IP：
+
+1. 企业微信后台「企业可信IP」填**云服务器**的出口 IP。
+2. 云服务器 nginx 增加一段转发（把 `<随机串>` 换成自己的随机字符串，避免被外人当跳板）：
+
+    ```nginx
+    location ^~ /wecom-api-<随机串>/ {
+        proxy_pass https://qyapi.weixin.qq.com/;
+        proxy_ssl_server_name on;
+        proxy_set_header Host qyapi.weixin.qq.com;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_read_timeout 30s;
+    }
+    ```
+
+3. 门户「系统设置 → RMS → 企业微信通知 → 接口根地址」填 `https://你的域名/wecom-api-<随机串>`；
+   还可填「反代校验密钥」，请求会带 `X-Proxy-Key` 头，在 nginx 里加
+   `if ($http_x_proxy_key != "同一段随机串") { return 403; }` 只允许本站调用。
+   留空「接口根地址」即恢复直连官方域名。
+4. 队员档案里的手机号就是企业微信绑定手机号：系统用 `user/getuserid` 换取 UserID 后逐个私聊发送；
+   未绑定手机号的账号收不到企业微信消息。
+5. 原「@全体」场景（新事件、事件完成、紧急报警）改为逐个发送给平台内所有
+   已绑定手机号、且非离线（`users.status <> 6`）的成员。
+6. 调度台顶部「指挥官」按钮可多选设置**本次指挥官**：设置后「新事件」与「事件完成」
+   只通知指挥官（按指挥官绑定手机号单独发送）；清空后恢复通知全体非离线成员；
+   紧急报警始终通知全体。名单存于系统设置 `rms.commander_user_ids`，每次修改写入设置日志。
 
 
 ## 页面入口
@@ -70,9 +114,9 @@ flowchart LR
 
 ## 部署
 
-仓库只带 `.env.example`。首次安装会在本机生成 `.env` 并写入 `SESSION_SECRET`。
+仓库只带 `.env.example`，不含填好的 `.env`。首次安装会在本机生成 `.env` 并写入 `SESSION_SECRET`、数据库密码等，不要把 `.env` 提交进 Git。
 
-根目录 `.env` 的 `SESSION_SECRET` 必须是至少 16 位强随机串；未配置或仍是示例值时将拒绝启动服务。
+根目录 `.env` 的 `SESSION_SECRET` 必须是至少 16 位强随机串；未配置或仍是示例值时服务拒绝进入业务模式。
 
 ```bash
 1.拉取仓库
@@ -81,6 +125,8 @@ flowchart LR
 4.初始配置结束后服务会自动终止
 5.使用npm start 命令再次启动服务
 ```
+
+已安装环境升级：不要删除现有 `.env` 和 `install.lock`。启动时不再删除旧表 `dispatch_logs`。新的系统设置键（如公开上报开关）需重启一次以写入默认值。非保障期间请在系统设置里关闭公开上报；活动期建议填写上报凭证，用 `/rms/report.html?token=...` 分发。
 
 
 ### 依赖

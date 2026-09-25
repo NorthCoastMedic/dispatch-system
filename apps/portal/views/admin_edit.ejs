@@ -1,49 +1,44 @@
 <%- include('partials/header') %>
 <style>
-    :root { --primary-color: #0056b3; --border-color: #eee; }
-    .admin-main { max-width: 1000px; margin: 30px auto; padding: 0 15px; box-sizing: border-box; }
-    .flex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-    .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }
-    .card-header { margin-top: 0; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
-    .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    :root { --primary-color: var(--pt-header, #0056b3); --border-color: var(--pt-border, #c2c8d0); }
+    .admin-main { flex:1; width:100%; max-width:none; margin:0; padding:12px 14px; box-sizing:border-box; background: var(--pt-bg, #dfe3e8); }
+    .flex-header { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 12px; padding:8px 12px; background: var(--pt-panel-2, #e9ecf0); border:1px solid var(--pt-border-soft, #b9c1ca); }
+    .flex-header h2 { margin:0; font-size:16px; color: var(--pt-text, #1f3a63); }
+    .card { background: var(--pt-panel, #fff); padding:16px; border:1px solid var(--pt-border-soft, #b9c1ca); border-radius:0; box-shadow:none; margin-bottom:14px; }
+    .card-header { margin:0 0 12px; padding:0 0 8px; border-bottom:1px solid var(--pt-border, #c2c8d0); font-size:15px; color: var(--pt-text, #1f3a63); }
+    .grid-form { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
     .grid-full { grid-column: span 2; }
-    .input-field { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-    .split-layout { display: flex; gap: 25px; flex-wrap: wrap; }
-    .split-panel { flex: 1; min-width: 300px; box-sizing: border-box; }
-    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .admin-table { width: 100%; text-align: left; border-collapse: collapse; min-width: 600px; }
-    .admin-table th, .admin-table td { padding: 15px; border-bottom: 1px solid #eee; }
-    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-    .btn { padding: 8px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; display: inline-block; text-align: center; }
-    .quick-add-form { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-    .quick-add-form input, .quick-add-form select, .quick-add-form button { flex: 1; min-width: 120px; }
-    .upload-box {
-        border: 1px dashed var(--pt-border-soft, #ccc);
-        border-radius: 6px;
-        padding: 12px;
-        background: var(--pt-panel-2, #fafafa);
-    }
+    .input-field { width:100%; padding:7px 9px; margin-top:5px; box-sizing:border-box; border:1px solid var(--pt-border-soft, #8a8a8a); border-radius:0; background: var(--pt-input-bg, #fff); color: var(--pt-text, #1a1a1a); font-size:13px; font-family:inherit; }
+    .input-field:focus { outline:1px solid var(--pt-header, #0056b3); }
+    .split-layout { display:flex; gap:14px; flex-wrap:wrap; }
+    .split-panel { flex:1; min-width:280px; box-sizing:border-box; }
+    .table-responsive { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--pt-border-soft, #b9c1ca); border-radius:0; box-shadow:none; }
+    .admin-table { width:100%; text-align:left; border-collapse:collapse; min-width:600px; font-size:13px; }
+    .admin-table th, .admin-table td { padding:8px 10px; border:1px solid var(--pt-border, #d6dae0); color: var(--pt-text, #1a1a1a); }
+    .admin-table th { background: var(--pt-panel-2, #e9ecf0); color: var(--pt-text, #2b3b52); white-space:nowrap; font-weight:700; }
+    .btn-group { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+    .btn { padding:6px 12px; border:1px solid var(--pt-border-soft, #8a8a8a); border-radius:0; background: var(--pt-panel, #e9ecf0); color: var(--pt-text, #1a1a1a); font-weight:700; font-size:13px; cursor:pointer; text-decoration:none; display:inline-block; text-align:center; font-family:inherit; }
+    .btn:hover { background: var(--pt-hover, #e2e7ec); }
+    .quick-add-form { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .quick-add-form input, .quick-add-form select, .quick-add-form button { flex:1; min-width:120px; }
+    .upload-box { border:1px dashed var(--pt-border-soft, #8a8a8a); border-radius:0; padding:12px; background: var(--pt-panel-2, #fafafa); }
     .upload-box small, .upload-box p { color: var(--pt-muted, #666); }
-    .delete-vol-bar { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--pt-border, #eee); }
-    .id-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:bold; }
-    .id-badge-bound { background:#d4edda; color:#155724; }
-    .id-badge-unbound { background:#e9ecef; color:#495057; }
-    .id-badge-lost { background:#f8d7da; color:#721c24; }
+    .delete-vol-bar { margin-top:20px; padding-top:14px; border-top:1px solid var(--pt-border, #c2c8d0); }
+    .id-badge { display:inline-block; padding:1px 8px; border:1px solid; font-size:12px; font-weight:bold; border-radius:0; }
+    .id-badge-bound { background: var(--pt-panel-2, #eef7f0); color:#155724; border-color:#8fbf9c; }
+    .id-badge-unbound { background: var(--pt-panel-2, #f2f2f2); color:#495057; border-color:#c4c4c4; }
+    .id-badge-lost { background:#fdf2f2; color:#721c24; border-color:#e0b4b4; }
     .id-card-row-form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
     .id-card-row-form .input-field { margin-top:0; min-width:120px; flex:1; }
     .qr-modal { display:none; position:fixed; z-index:9999; inset:0; background:rgba(0,0,0,0.55); align-items:center; justify-content:center; padding:16px; }
     .qr-modal.show { display:flex; }
-    .qr-box { background:#fff; border-radius:10px; padding:24px; max-width:360px; width:100%; text-align:center; }
-    .admin-tabs { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 20px; padding:4px; background:var(--pt-panel-2, #f1f5f9); border-radius:10px; }
-    .admin-tab {
-        flex:1; min-width:140px; text-align:center; padding:12px 16px; border:none; border-radius:8px;
-        background:transparent; color:#475569; font-weight:bold; font-size:15px; cursor:pointer;
-        text-decoration:none; font-family:inherit;
-    }
-    .admin-tab:hover { background:rgba(255,255,255,0.7); color:#0056b3; }
-    .admin-tab.active { background:#fff; color:#0056b3; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
-    .admin-tab small { display:block; font-weight:normal; font-size:12px; color:#94a3b8; margin-top:2px; }
-    .admin-tab.active small { color:#64748b; }
+    .qr-box { background: var(--pt-panel, #fff); color: var(--pt-text, #1a1a1a); border:2px solid var(--pt-border-soft, #8a8a8a); border-radius:0; padding:20px; max-width:360px; width:100%; text-align:center; }
+    .admin-tabs { display:flex; flex-wrap:wrap; gap:0; margin:0 0 12px; padding:0; background: var(--pt-panel, #fff); border:1px solid var(--pt-border-soft, #b9c1ca); }
+    .admin-tab { flex:1; min-width:140px; text-align:center; padding:10px 14px; border:1px solid transparent; border-bottom:0; border-radius:0; background:transparent; color: var(--pt-text-2, #475569); font-weight:bold; font-size:14px; cursor:pointer; text-decoration:none; font-family:inherit; }
+    .admin-tab:hover { background: var(--pt-hover, #eef2f7); }
+    .admin-tab.active { background: var(--pt-header, #0056b3); color:#fff; border-color: var(--pt-header, #0056b3); }
+    .admin-tab small { display:block; font-weight:normal; font-size:12px; color: var(--pt-muted, #94a3b8); margin-top:2px; }
+    .admin-tab.active small { color:#dbe8f8; }
     .admin-pane { display:none; }
     .admin-pane.active { display:block; }
     @media print {
@@ -53,21 +48,24 @@
         .qr-actions { display: none !important; }
     }
     @media (max-width: 768px) {
-        .admin-main { margin: 15px auto; }
+        .admin-main { padding:10px; }
         .grid-form { grid-template-columns: 1fr; }
         .grid-full { grid-column: span 1; }
         .split-layout { flex-direction: column; }
-        .card { padding: 15px; }
-        .btn-group { justify-content: flex-start; margin-top: 10px; }
+        .card { padding:12px; }
+        .btn-group { justify-content: flex-start; }
         .quick-add-form { flex-direction: column; align-items: stretch; }
+        .quick-add-form input, .quick-add-form select, .quick-add-form button { min-width:0; }
+        .admin-tab { min-width:0; flex:1 1 auto; font-size:13px; padding:10px; }
+        .btn { padding:8px 12px; }
     }
 </style>
 <main class="admin-main">
-    <% if (msg) { %><div style="background:#d4edda; color:#155724; padding:12px; border-radius:5px; margin-bottom:20px; border:1px solid #c3e6cb; font-weight:bold;"><%= msg %></div><% } %>
+    <% if (msg) { %><div style="background:var(--pt-panel-2, #eef7f0); color:var(--pt-text, #155724); padding:10px 12px; border-radius:0; margin:0 0 12px; border:1px solid var(--pt-border-soft, #8fbf9c); font-weight:bold;"><%= msg %></div><% } %>
 
     <% if (mode === 'edit_vol' && vol) { %>
         <div class="flex-header">
-            <h2>📝 编辑档案：<%= vol.name %> (<%= vol.badge_number %>)</h2>
+            <h2>编辑档案：<%= vol.name %> (<%= vol.badge_number %>)</h2>
             <div class="btn-group">
                 <a href="admin_edit.php?tab=people" class="btn" style="background:#6c757d; color:white;">返回列表</a>
             </div>
@@ -78,7 +76,7 @@
         </nav>
         <div id="vol-base" class="admin-pane active">
         <div class="card">
-            <h3 class="card-header">👤 基础信息</h3>
+            <h3 class="card-header">基础信息</h3>
             <form method="POST" action="/admin_edit.php" class="grid-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<%= csrf %>">
                 <input type="hidden" name="vid" value="<%= vol.id %>">
@@ -153,7 +151,7 @@
         <div id="vol-certs" class="admin-pane">
         <div class="split-layout">
             <div class="card split-panel">
-                <h3 class="card-header">📋 已录入资质</h3>
+                <h3 class="card-header">已录入资质</h3>
                 <ul style="list-style:none; padding:0; margin:0;">
                     <% certs.forEach(function(c) { %>
                     <li style="padding:12px 0; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
@@ -180,7 +178,7 @@
                 </ul>
             </div>
             <div class="card split-panel" style="background:#f8f9fa; border:1px solid #ddd;">
-                <h3 class="card-header">➕ 颁发/录入新资质</h3>
+                <h3 class="card-header">颁发/录入新资质</h3>
                 <form method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:15px;">
                     <input type="hidden" name="csrf_token" value="<%= csrf %>">
                     <input type="hidden" name="vid" value="<%= vol.id %>">
@@ -215,7 +213,7 @@
         </script>
 
     <% } else if (mode === 'edit_cert' && cert) { %>
-        <div class="flex-header"><h2>✏️ 修改资质信息</h2><a href="?edit_id=<%= vid %>#vol-certs" class="btn" style="background:#6c757d; color:white;">返回档案</a></div>
+        <div class="flex-header"><h2>修改资质信息</h2><a href="?edit_id=<%= vid %>#vol-certs" class="btn" style="background:#6c757d; color:white;">返回档案</a></div>
         <div class="card" style="max-width:600px; margin:0 auto; border-top:4px solid #ffc107;">
             <form method="POST" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:15px;">
                 <input type="hidden" name="csrf_token" value="<%= csrf %>">
@@ -249,12 +247,12 @@
                     <input type="file" name="cert_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="input-field" style="background:#fff;">
                     <small style="color:#94a3b8; display:block; margin-top:6px;">不上传文件则保留原图。</small>
                 </div>
-                <button type="submit" name="update_cert_info" value="1" class="btn" style="background:#ffc107; color:#333; padding:12px; font-size:16px;">💾 保存修改</button>
+                <button type="submit" name="update_cert_info" value="1" class="btn" style="background:#ffc107; color:#333; padding:12px; font-size:16px;">保存修改</button>
             </form>
         </div>
 
     <% } else if (mode === 'account' && vol) { %>
-        <div class="flex-header"><h2>🔑 账号管理：<%= vol.name %></h2><a href="admin_edit.php?tab=people" class="btn" style="background:#6c757d; color:white;">返回列表</a></div>
+        <div class="flex-header"><h2>账号管理：<%= vol.name %></h2><a href="admin_edit.php?tab=people" class="btn" style="background:#6c757d; color:white;">返回列表</a></div>
         <div class="card" style="max-width:500px; margin:0 auto;">
             <% if (accountUser) { %>
                 <form method="POST" style="display:flex; flex-direction:column; gap:15px;">
@@ -332,7 +330,7 @@
         <div class="card" style="background:#e9ecef; border-left:5px solid #0056b3;">
             <form method="POST" class="quick-add-form">
                 <input type="hidden" name="csrf_token" value="<%= csrf %>">
-                <strong>➕ 快速建档:</strong>
+                <strong>快速建档:</strong>
                 <input type="text" name="new_name" placeholder="姓名" required class="input-field">
                 <input type="text" name="new_badge" placeholder="编号" required class="input-field">
                 <input type="date" name="new_join_date" required class="input-field">
@@ -352,8 +350,8 @@
                     <td><%= row.status === 'active' ? '在职' : '离队' %></td>
                     <td>
                         <div class="btn-group">
-                            <a href="?edit_id=<%= row.id %>" class="btn" style="border:1px solid #0056b3; color:#0056b3;">📝 档案</a>
-                            <a href="?account_id=<%= row.id %>" class="btn" style="border:1px solid #28a745; color:#28a745;">🔑 账号</a>
+                            <a href="?edit_id=<%= row.id %>" class="btn" style="border:1px solid #0056b3; color:#0056b3;">档案</a>
+                            <a href="?account_id=<%= row.id %>" class="btn" style="border:1px solid #28a745; color:#28a745;">账号</a>
                         </div>
                     </td>
                 </tr>
@@ -527,6 +525,7 @@
     (function () {
         var has2fa = <%= (typeof actorHas2fa !== 'undefined' && actorHas2fa) ? 'true' : 'false' %>;
         var pendingForm = null;
+        var pendingSubmitter = null;
         var modal = document.getElementById('reauthModal');
         var passEl = document.getElementById('reauthPass');
         var totpEl = document.getElementById('reauthTotp');
@@ -550,6 +549,7 @@
         function attach(form) {
             form.addEventListener('submit', function (e) {
                 if (form.getAttribute('data-reauth-ok') === '1') return;
+                pendingSubmitter = e.submitter || null;
                 e.preventDefault();
                 openReauth(form);
             });
@@ -589,7 +589,12 @@
             setHidden('confirm_password', passEl.value);
             if (has2fa) setHidden('confirm_totp', totpEl.value);
             pendingForm.setAttribute('data-reauth-ok', '1');
-            pendingForm.submit();
+            if (pendingSubmitter && typeof pendingForm.requestSubmit === 'function') {
+                pendingForm.requestSubmit(pendingSubmitter);
+            } else {
+                if (pendingSubmitter && pendingSubmitter.name) setHidden(pendingSubmitter.name, pendingSubmitter.value);
+                pendingForm.submit();
+            }
         });
     })();
     </script>

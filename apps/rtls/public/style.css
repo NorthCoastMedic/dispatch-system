@@ -33,7 +33,7 @@ body.light-theme {
    2. 椤舵爮锛堝鑸〉钃?+ 绱у噾涓夋爮锛屽彸渚ф寜鍐呭瀹藉害锛?
    ========================================================================== */
 .fixed-header {
-    height: 64px;
+    height: 60px;
     background: #0056b3;
     color: #ffffff;
     display: flex;
@@ -43,8 +43,7 @@ body.light-theme {
     padding: 0 16px;
     z-index: 1000;
     position: relative;
-    border-bottom: 3px solid #004494;
-    box-shadow: 0 2px 10px rgba(0, 86, 179, 0.25);
+    border-bottom: 2px solid #004494;
 }
 
 .mobile-only-btn { display: none; }
@@ -60,7 +59,7 @@ body.light-theme {
 .event-tag {
     background: rgba(255, 255, 255, 0.18);
     padding: 4px 10px;
-    border-radius: 16px;
+    border-radius: 0;
     font-size: 13px;
     color: #fff;
 }
@@ -70,10 +69,9 @@ body.light-theme {
     font-weight: 600;
     padding: 4px 12px;
     background: rgba(255, 255, 255, 0.12);
-    border-radius: 16px;
+    border-radius: 0;
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: rgba(255, 255, 255, 0.95);
-    transition: all 0.3s;
 }
 
 /* 涓棿鏍忥細璧涗簨鍚嶇О */
@@ -107,23 +105,22 @@ body.light-theme {
 
 .top-nav {
     display: flex;
-    gap: 4px;
-    background: rgba(0, 0, 0, 0.12);
-    padding: 4px;
-    border-radius: 20px;
+    gap: 0;
+    background: none;
+    padding: 0;
+    border-radius: 0;
 }
 
 .nav-item {
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.9);
     text-decoration: none;
     font-size: 13px;
     font-weight: 600;
-    padding: 6px 14px;
-    border-radius: 16px;
-    transition: all 0.2s;
+    padding: 8px 14px;
+    border-radius: 0;
 }
 
-.nav-item:hover { color: #ffffff; background: rgba(255, 255, 255, 0.12); }
+.nav-item:hover { color: #ffffff; background: rgba(0, 0, 0, 0.22); }
 
 .nav-item.active {
     background: #ffffff;
@@ -143,9 +140,9 @@ body.light-theme {
     width: 320px;
     background: #ffffff;
     z-index: 50;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    box-shadow: none;
     display: flex;
     flex-direction: column; 
     overflow: hidden;
@@ -168,7 +165,7 @@ body.light-theme {
     color: #64748b;
     background: #ffffff;
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: 0;
     border: 1px solid #e2e8f0;
 }
 .stats-badge .divider { color: #cbd5e1; margin: 0 4px; }
@@ -188,7 +185,7 @@ body.light-theme {
     color: #475569;
     background: #f1f5f9;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: 0;
     cursor: pointer;
     border: 1px solid transparent;
 }
@@ -215,15 +212,14 @@ body.light-theme {
 .card {
     background: #ffffff;
     padding: 12px;
-    border-radius: 6px;
+    border-radius: 0;
     border: 1px solid #e2e8f0;
     cursor: pointer;
     transition: all 0.15s ease;
 }
 .card:hover {
-    border-color: #0056b3; /* 淇敼涓轰富棰樿摑 */
+    border-color: #0056b3; /* 修改为主题蓝 */
     background: #fdfefe;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .card h4 {
@@ -240,7 +236,7 @@ body.light-theme {
     color: #64748b;
     background: #f1f5f9;
     padding: 1px 5px;
-    border-radius: 3px;
+    border-radius: 0;
 }
 
 .card p {
@@ -261,9 +257,9 @@ body.light-theme {
     background: #ffffff;
     z-index: 60;
     transition: right 0.3s ease;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid #e2e8f0;
-    box-shadow: -4px 0 16px rgba(0,0,0,0.08);
+    box-shadow: none;
 }
 .sidebar-right.active { right: 20px; }
 
@@ -296,13 +292,13 @@ body.light-theme {
 .remark-title { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
 #info-remark {
     width: 100%; height: 80px; padding: 8px; background: #f8fafc; border: 1px solid #cbd5e1;
-    border-radius: 4px; box-sizing: border-box; resize: none; font-size: 13px;
+    border-radius: 0; box-sizing: border-box; resize: none; font-size: 13px;
 }
 #info-remark:focus { outline: none; border-color: #0056b3; } /* 淇敼涓轰富棰樿摑 */
 
 .action-btn {
-    background: #0056b3; color: #ffffff; border: none; padding: 10px; /* 淇敼涓轰富棰樿摑 */
-    border-radius: 4px; cursor: pointer; font-weight: 700; width: 100%; margin-top: 12px; font-size: 13px;
+    background: #0056b3; color: #ffffff; border: none; padding: 10px; /* 修改为主题蓝 */
+    border-radius: 0; cursor: pointer; font-weight: 700; width: 100%; margin-top: 12px; font-size: 13px;
 }
 .action-btn:hover { background: #004494; } /* 淇敼涓烘繁閭冩偓鍋滆摑 */
 
@@ -372,8 +368,8 @@ body.light-theme {
 }
 .mobile-overlay.active { display: block; }
 
-@media (max-width: 768px) {
-    /* 澶撮儴娴佸紡鎶樺彔 */
+@media (max-width: 1024px) {
+    /* 头部流式折叠 */
     .fixed-header { 
         flex-direction: column; 
         height: auto; 
@@ -398,7 +394,7 @@ body.light-theme {
     .header-center { order: -1; justify-content: flex-start; }
     
     #event-name { font-size: 20px; white-space: normal; line-height: 1.2; }
-    #weather-monitor { display: none; } /* 灏忓睆闅愯棌姘斿€欓潰鏉胯吘鍑虹┖闂?*/
+    #weather-monitor { flex-wrap: wrap; white-space: normal; gap: 6px 12px; font-weight: 500; }
     
     /* 宸︿晶璁惧鍒楄〃鍙樹负渚ц竟鎶藉眽 */
     .float-sidebar-left {
@@ -426,8 +422,8 @@ body.light-theme {
     
     /* 寮哄埗閲嶅啓杈撳叆妗嗗瓧鍙烽槻 iOS 鑷姩缂╂斁 */
     input, select, textarea, button { font-size: 16px !important; }
-    .filter-item { padding: 8px 12px; font-size: 14px; }
-    .nav-item { padding: 8px 12px; font-size: 14px; }
+    .filter-item { padding: 10px 14px; font-size: 14px; min-height: 40px; display: inline-flex; align-items: center; }
+    .nav-item { padding: 10px 14px; font-size: 14px; min-height: 40px; display: inline-flex; align-items: center; }
 }
 /* ================= 平台亮/暗主题（覆盖 RTLS 各小模块） ================= */
 html[data-theme] body.light-theme {
@@ -437,7 +433,6 @@ html[data-theme] body.light-theme {
 html[data-theme] .fixed-header {
     background: var(--pt-header, #0056b3);
     border-bottom-color: var(--pt-header-2, #004494);
-    box-shadow: 0 2px 10px var(--pt-shadow, rgba(0, 86, 179, 0.25));
 }
 html[data-theme] .nav-item.active {
     background: var(--pt-nav-active-bg, #fff);
@@ -449,7 +444,6 @@ html[data-theme] .fixed-footer {
     background: var(--pt-panel, #ffffff) !important;
     border-color: var(--pt-border, #e2e8f0) !important;
     color: var(--pt-text-2, #334155) !important;
-    box-shadow: 0 4px 16px var(--pt-shadow, rgba(0,0,0,0.08));
 }
 html[data-theme] .panel-header,
 html[data-theme] .sidebar-header {
@@ -558,4 +552,61 @@ html[data-theme="dark"] .filter-item:has(input:checked) {
 }
 html[data-theme="dark"] .card:hover {
     background: var(--pt-hover, #243044) !important;
+}
+
+/* 小屏仅隐藏天气面板（平板保留） */
+@media (max-width: 600px) {
+    #weather-monitor { display: none; }
+}
+
+/* 模块切换：桌面文字标签，小屏下拉框 */
+.module-links { display: contents; }
+.module-switch { display: none; }
+@media (max-width: 1024px) {
+    .module-links { display: none; }
+    .module-switch {
+        display: block;
+        min-height: 40px;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        font-weight: 600;
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 0;
+    }
+    .module-switch option { color: #1a1a1a; background: #ffffff; }
+}
+
+/* 小屏仅隐藏天气面板（平板保留） */
+@media (max-width: 600px) {
+    #weather-monitor { display: none; }
+}
+
+/* 模块切换：桌面文字标签，小屏下拉框 */
+.module-links { display: contents; }
+.module-switch { display: none; }
+@media (max-width: 1024px) {
+    .module-links { display: none; }
+    .module-switch {
+        display: block;
+        min-height: 40px;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        font-weight: 600;
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 0;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    .module-switch option { color: #1a1a1a; background: #ffffff; }
+}
+
+/* 小屏仅隐藏天气面板（平板保留） */
+@media (max-width: 600px) {
+    #weather-monitor { display: none; }
 }
