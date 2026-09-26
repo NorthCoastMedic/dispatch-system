@@ -64,6 +64,20 @@
     .settings-msg.ok { color: #198754; }
     .settings-msg.err { color: #dc3545; }
     .settings-hint { font-size: 12px; color: var(--pt-muted, #888); margin-top: 10px; line-height: 1.5; }
+    .pwa-icon-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .pwa-icon-row img {
+        width: 96px; height: 96px; object-fit: cover; flex: none;
+        border: 1px solid var(--pt-border-soft, #b9c1ca); background: var(--pt-panel-2, #f4f5f7);
+    }
+    .pwa-icon-side { flex: 1 1 320px; min-width: 260px; }
+    .pwa-icon-hint { margin: 0 0 10px; font-size: 12px; color: var(--pt-muted, #888); line-height: 1.6; }
+    .pwa-icon-side input[type="file"] { font-size: 13px; margin-bottom: 10px; width: 100%; }
+    .pwa-icon-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .pwa-icon-actions button {
+        border: 1px solid var(--pt-header, #0056b3); background: var(--pt-header, #0056b3); color: #fff; border-radius: 0;
+        padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .pwa-icon-actions button:disabled { opacity: .6; cursor: wait; }
     .nav-editor-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
     .nav-editor-toolbar button {
         border: 1px solid var(--pt-border-soft, #8a8a8a); background: var(--pt-panel, #f8fafc); border-radius: 0;
@@ -183,7 +197,7 @@
                                     <% if (!field.optional) { %>required<% } %>
                                 >
                                 <% if (fieldKey === 'id_card_scan_base') { %>
-                                <p style="margin:6px 0 0;font-size:12px;color:#666;">打印在证件上的扫码入口，所有证件共用。只含证件号，换绑队员二维码不变。不要填 127.0.0.1。须以 <code>http://</code> 或 <code>https://</code> 开头，例如 <code>http://192.168.1.18:12000</code>。</p>
+                                <p style="margin:6px 0 0;font-size:12px;color:#666;">打印在证件上的扫码入口，所有证件共用。只含证件号，换绑队员二维码不变。不要填 127.0.0.1。须以 <code>http://</code> 或 <code>https://</code> 开头，例如 <code>http://服务器IP:12000</code>。</p>
                                 <% } %>
                                 <% if (fieldKey === 'id_card_found_label') { %>
                                 <p style="margin:6px 0 0;font-size:12px;color:#888;">显示在扫码结果页按钮上，可改成任意名称。</p>
@@ -194,6 +208,26 @@
                             </div>
                             <% } %>
                             <% }); } %>
+
+                            <% if (catKey === 'pwa') { %>
+                            <div class="field">
+                                <label>应用图标</label>
+                                <div class="pwa-icon-row">
+                                    <img id="pwa-icon-preview" src="/platform/pwa/icon-192.png" alt="当前图标">
+                                    <div class="pwa-icon-side">
+                                        <p class="pwa-icon-hint">
+                                            上传一张 512×512 的 PNG 或 JPG，系统会自动生成 192 / 512 / 180 与 maskable 各尺寸，无需自己切图。<br>
+                                            图标在手机端是静态资源：已装到桌面的手机重新打开 App 即可看到新图标；需 HTTPS 访问才生效。
+                                        </p>
+                                        <input type="file" id="pwa-icon-file" accept="image/png,image/jpeg">
+                                        <div class="pwa-icon-actions">
+                                            <button type="button" id="btn-pwa-icon-upload">上传并生成各尺寸</button>
+                                            <span id="pwa-icon-msg" class="settings-msg"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <% } %>
 
                             <% if (cat.sections) {
                                 var secKeys = Object.keys(cat.sections);
@@ -676,6 +710,54 @@
             msg.className = 'settings-msg err';
         });
     });
+
+    // PWA 图标：不是系统设置字段，单独走上传接口（服务端重新编码后派生各尺寸）
+    (function () {
+        var btn = document.getElementById('btn-pwa-icon-upload');
+        var fileEl = document.getElementById('pwa-icon-file');
+        var msgEl = document.getElementById('pwa-icon-msg');
+        var preview = document.getElementById('pwa-icon-preview');
+        if (!btn || !fileEl || !msgEl) return;
+
+        btn.addEventListener('click', function () {
+            var file = fileEl.files && fileEl.files[0];
+            if (!file) {
+                msgEl.textContent = '请先选择图片';
+                msgEl.className = 'settings-msg err';
+                return;
+            }
+            var body = new FormData();
+            body.append('icon', file);
+            body.append('csrf_token', PAGE_CSRF);
+
+            btn.disabled = true;
+            msgEl.textContent = '上传中…';
+            msgEl.className = 'settings-msg';
+
+            fetch('/api/pwa-icon', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: body
+            }).then(function (r) {
+                return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+            }).then(function (res) {
+                if (!res.ok || !res.data.success) {
+                    msgEl.textContent = (res.data && res.data.message) || '上传失败';
+                    msgEl.className = 'settings-msg err';
+                    return;
+                }
+                msgEl.textContent = res.data.message || '图标已更新';
+                msgEl.className = 'settings-msg ok';
+                if (preview) preview.src = '/platform/pwa/icon-192.png?t=' + Date.now();
+                fileEl.value = '';
+            }).catch(function () {
+                msgEl.textContent = '网络错误，上传失败';
+                msgEl.className = 'settings-msg err';
+            }).then(function () {
+                btn.disabled = false;
+            });
+        });
+    })();
 })();
 </script>
 <%- include('partials/footer') %>

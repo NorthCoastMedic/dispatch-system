@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0056b3">
+    <title>当前离线</title>
+    <style>
+        html, body { height: 100%; margin: 0; }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: #dfe3e8;
+            color: #1a1a1a;
+            font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+            text-align: center;
+        }
+        .card {
+            max-width: 340px;
+            background: #fff;
+            border: 1px solid #b9c1ca;
+            padding: 28px 22px;
+        }
+        h1 { margin: 0 0 12px; font-size: 18px; color: #0056b3; }
+        p { margin: 0 0 18px; font-size: 14px; line-height: 1.7; color: #444; }
+        button {
+            width: 100%;
+            padding: 11px;
+            font-size: 15px;
+            font-weight: bold;
+            font-family: inherit;
+            color: #fff;
+            background: #0056b3;
+            border: 1px solid #0056b3;
+            cursor: pointer;
+        }
+        .tip { margin: 14px 0 0; font-size: 12px; color: #8a8a8a; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>当前处于离线状态</h1>
+        <p>页面没能连上服务器。若你正在使用响应终端，之前排队的状态操作都保存在本机，联网后会自动上传。</p>
+        <button type="button" onclick="location.reload()">重新加载</button>
+        <p class="tip" id="net-tip"></p>
+    </div>
+    <script>
+        (function () {
+            var tip = document.getElementById('net-tip');
+            function render() {
+                if (!tip) return;
+                tip.textContent = navigator.onLine ? '网络已恢复，点击重新加载。' : '等待网络恢复…';
+            }
+            render();
+            window.addEventListener('online', render);
+            window.addEventListener('offline', render);
+        })();
+    </script>
+</body>
+</html>

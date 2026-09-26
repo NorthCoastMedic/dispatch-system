@@ -274,7 +274,7 @@ const CATEGORY_DEFS = {
                 type: 'url',
                 optional: true,
                 default: '',
-                placeholder: 'http://192.168.1.18:12000'
+                placeholder: 'http://服务器IP:12000'
             },
             id_card_found_enabled: {
                 label: '显示证件拾获登记入口',
@@ -296,6 +296,33 @@ const CATEGORY_DEFS = {
                 optional: true,
                 default: '',
                 placeholder: 'https://... 可用 {no} 代入证件号'
+            }
+        }
+    },
+    pwa: {
+        label: 'PWA / 添加到主屏幕',
+        description: '手机把本站装成 App 时的名称、主题色与图标。需用 HTTPS 域名访问才生效；图标在下方单独上传。',
+        fields: {
+            name: {
+                label: '安装后名称',
+                type: 'text',
+                optional: true,
+                default: '',
+                placeholder: '留空则用「内部平台名称」'
+            },
+            short_name: {
+                label: '图标下方短名称',
+                type: 'text',
+                optional: true,
+                default: '',
+                placeholder: '留空则同上，建议不超过 6 个字'
+            },
+            theme_color: {
+                label: '主题色',
+                type: 'text',
+                optional: true,
+                default: '',
+                placeholder: '留空则用 #0056b3，例如 #0056b3'
             }
         }
     },
@@ -472,7 +499,7 @@ const CATEGORY_DEFS = {
                         label: '接口根地址（反代 / 固定出口IP）',
                         type: 'text',
                         optional: true,
-                        placeholder: '如 https://orgstaff.pqzou.xyz/wecom-api-xxxx（留空=直连官方域名）',
+                        placeholder: '如 https://你的域名/wecom-api-xxxx（留空=直连官方域名）',
                         default: ''
                     },
                     wecom_api_key: {

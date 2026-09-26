@@ -78,7 +78,7 @@ python main.py
     "sensor_id": "1",
     "baud_rate": 9600,
     "app_title": "WBGT串口转发工具",
-    "footer_text": "技术支持：北岸救援"
+    "footer_text": "技术支持：某某救援"
 }
 ```
 
@@ -114,7 +114,7 @@ pyinstaller 端口转发.spec
 
 产物：`dist/端口转发.exe`。运行目录旁需有 `config.json`。
 
-历史上 `EXE成品/端口转发.exe` 与 `dist/北岸医疗-数据终端.exe` 是同一份 PyInstaller 构建（仅文件名不同），源码即本目录 `main.py`，无需反编译。
+历史上 `EXE成品/端口转发.exe` 与 `dist/数据终端.exe` 是同一份 PyInstaller 构建（仅文件名不同），源码即本目录 `main.py`，无需反编译。
 
 安装包脚本（Inno Setup）在上一级 `EXE安装包/`，应用名「WBGT串口转发工具」。
 

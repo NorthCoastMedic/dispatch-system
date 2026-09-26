@@ -1,13 +1,89 @@
 let currentUser = null;
 let allEvents = [];
 let socket = null;
-let isEmergencyActive = false; // 记录当前是否处于紧急状态
+let isEmergencyActive = false; 
 let isEmergencyHolding = false;
 let myCurrentEventId = null;
 let myPendingEventId = null;
 let latestDispatchMessage = null;
 let offlineFlushTimer = null;
 const TM_MSG_DISMISS_KEY_PREFIX = 'rms_tm_msg_dismiss_v1_';
+/** 本机缓存的账号与状态缓存*/
+const TM_USER_CACHE_KEY = 'rms_terminal_user_v1';
+const TM_STATUS_CACHE_KEY_PREFIX = 'rms_terminal_status_v1_';
+
+function readLocalJson(key) {
+    try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function writeLocalJson(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function cacheCurrentUser(user) {
+    if (!user || user.id == null) return;
+    writeLocalJson(TM_USER_CACHE_KEY, {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        volunteer_id: user.volunteer_id,
+        cached_at: Date.now()
+    });
+}
+
+function loadCachedUser() {
+    const user = readLocalJson(TM_USER_CACHE_KEY);
+    return user && user.id != null ? user : null;
+}
+
+function statusCacheKey() {
+    return TM_STATUS_CACHE_KEY_PREFIX + queueUserId();
+}
+
+function cacheStatusSnapshot(myData) {
+    if (!currentUser || !myData) return;
+    writeLocalJson(statusCacheKey(), {
+        status: myData.status,
+        current_event_id: myData.current_event_id != null ? myData.current_event_id : null,
+        event_title: myData.event_title || null,
+        pending_event_id: myData.pending_event_id != null ? myData.pending_event_id : null,
+        pending_event_title: myData.pending_event_title || null,
+        pending_contact: myData.pending_contact || null,
+        pending_details: myData.pending_details || null,
+        cached_at: Date.now()
+    });
+}
+
+function loadStatusSnapshot() {
+    return readLocalJson(statusCacheKey());
+}
+
+/** 离线切换后，把状态写回本机快照，保证刷新/重开后仍能显示 */
+function persistOptimisticStatus(statusNum, eventId, eventTitle) {
+    const snap = loadStatusSnapshot() || {};
+    snap.status = statusNum;
+    if (statusNum === 1 || statusNum === 2 || statusNum === 6) {
+        snap.current_event_id = null;
+        snap.event_title = null;
+    } else if (eventId != null) {
+        snap.current_event_id = eventId;
+        if (eventTitle) snap.event_title = eventTitle;
+    } else if (statusNum === 3 || statusNum === 4) {
+        snap.current_event_id = myCurrentEventId;
+    }
+    snap.cached_at = Date.now();
+    writeLocalJson(statusCacheKey(), snap);
+}
 
 function queueUserId() {
     return currentUser && currentUser.id != null ? currentUser.id : 0;
@@ -29,11 +105,11 @@ function updateLinkBanner() {
     }
     banner.classList.remove('hidden');
     if (!online && n > 0) {
-        textEl.textContent = '网络不稳，已有 ' + n + ' 项操作在本地排队，恢复后自动回传。';
+        textEl.textContent = '网络信号强度弱，已有 ' + n + ' 项操作在本地排队，恢复后自动上传。';
     } else if (!online) {
-        textEl.textContent = '当前弱网/离线，操作将先保存在本机，联网后自动回传。';
+        textEl.textContent = '当前弱网/离线，操作将先保存在本机，联网后自动上传。';
     } else {
-        textEl.textContent = '网络已恢复，仍有 ' + n + ' 项待回传，正在发送…';
+        textEl.textContent = '网络已恢复，仍有 ' + n + ' 项待上传，正在发送…';
     }
 }
 
@@ -86,8 +162,16 @@ function applyOptimisticStatus(statusNum, eventId, eventTitle) {
     } else {
         syncCurrentEventCard(myCurrentEventId, eventTitle);
     }
+    persistOptimisticStatus(n, eventId, eventTitle);
     updateEmergencyButtonUI();
     updateStatusButtonsLock();
+}
+
+/** 离线打开页面时，用本机快照先把状态与当前事件显示出来 */
+function renderCachedStatus() {
+    const snap = loadStatusSnapshot();
+    if (!snap || snap.status == null) return;
+    renderMyStatus(snap);
 }
 
 /** 同步「当前响应事件」区与停止响应按钮（无事件时灰显禁用） */
@@ -118,24 +202,38 @@ function syncCurrentEventCard(eventId, eventTitle) {
 }
 
 /**
+ * 写入本地队列；写入失败（配额已满 / 隐私模式）返回 false，并当场提示用户
+ */
+function enqueueLocal(eventName, data, opts) {
+    if (!window.RmsOfflineQueue || !currentUser) {
+        showTmNotice('当前离线且无法写入本地队列，请恢复网络后重试。');
+        return false;
+    }
+    const saved = RmsOfflineQueue.enqueue(queueUserId(), {
+        event: eventName,
+        data: data,
+        priority: opts.priority || 'normal',
+        coalesceKey: opts.coalesceKey || null,
+        label: opts.label || eventName
+    });
+    updateLinkBanner();
+    if (saved < 0) {
+        showTmNotice('本机存储不可用（可能空间不足或处于隐私模式），这次操作没能保存，请联网后重试！', '保存失败');
+        return false;
+    }
+    return true;
+}
+
+/**
  * 在线直发；离线写入 localStorage 队列（不改库表）
  */
 function emitReliable(eventName, data, options) {
     const opts = options || {};
     const online = linkIsOnline();
     if (!online) {
-        if (!window.RmsOfflineQueue || !currentUser) {
-            showTmNotice('当前离线且无法写入本地队列，请恢复网络后重试。');
+        if (!enqueueLocal(eventName, data, opts)) {
             return Promise.resolve({ queued: false, failed: true });
         }
-        RmsOfflineQueue.enqueue(queueUserId(), {
-            event: eventName,
-            data: data,
-            priority: opts.priority || 'normal',
-            coalesceKey: opts.coalesceKey || null,
-            label: opts.label || eventName
-        });
-        updateLinkBanner();
         if (typeof opts.onQueued === 'function') opts.onQueued();
         return Promise.resolve({ queued: true });
     }
@@ -147,18 +245,11 @@ function emitReliable(eventName, data, options) {
                 if (settled) return;
                 settled = true;
                 // 发出超时：改入本地队列，避免丢失
-                if (window.RmsOfflineQueue && currentUser) {
-                    RmsOfflineQueue.enqueue(queueUserId(), {
-                        event: eventName,
-                        data: data,
-                        priority: opts.priority || 'normal',
-                        coalesceKey: opts.coalesceKey || null,
-                        label: opts.label || eventName
-                    });
-                    updateLinkBanner();
-                    if (typeof opts.onQueued === 'function') opts.onQueued();
-                }
-                resolve({ queued: true, timeout: true });
+                var saved = enqueueLocal(eventName, data, opts);
+                if (saved && typeof opts.onQueued === 'function') opts.onQueued();
+                resolve(saved
+                    ? { queued: true, timeout: true }
+                    : { queued: false, failed: true, timeout: true });
             }, 8000);
             socket.emit(eventName, data, function (resp) {
                 if (settled) return;
@@ -196,6 +287,18 @@ function bindOfflineQueueUi() {
             updateLinkBanner();
         });
     }
+    // 从后台切回前台时兜底重试
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState !== 'visible') return;
+        updateLinkBanner();
+        scheduleOfflineFlush();
+    });
+    // 队列里还有货就定期重试，避免漏掉某次重连事件后一直不回传
+    setInterval(function () {
+        if (!window.RmsOfflineQueue || !currentUser) return;
+        if (RmsOfflineQueue.count(queueUserId()) <= 0) return;
+        flushOfflineQueue();
+    }, 15000);
     updateLinkBanner();
     scheduleOfflineFlush();
 }
@@ -261,17 +364,66 @@ function showTmConfirm(message, options) {
     });
 }
 
+/**
+ * io 未加载（断网且 CDN 没缓存到）时的空实现：
+ * 保持 socket 接口形态让页面逻辑不中断，linkIsOnline() 仍为 false，操作照常入队。
+ */
+function createInertSocket() {
+    return {
+        connected: false,
+        on: function () {},
+        emit: function () {},
+        connect: function () {},
+        disconnect: function () {}
+    };
+}
+
+/** 断网且本机没有缓存账号：不跳登录页（离线跳过去也打不开），就地提示 */
+function markOfflineNoSession() {
+    const statusBadge = document.getElementById('my-status-badge');
+    if (statusBadge) {
+        statusBadge.innerText = '离线';
+        statusBadge.className = 'tm-lcd-status is-offline';
+    }
+    updateLinkBanner();
+    showTmNotice('当前离线，且本机没有缓存的登录信息。请恢复网络后重新打开本页。', '离线');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    const res = await fetch('/api/me');
-    const data = await res.json();
-    if (!data.success) {
+    let user = null;
+    let serverResponded = false;
+
+    try {
+        const res = await fetch('/api/me', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data && data.success && data.user) {
+            user = data.user;
+            serverResponded = true;
+        } else if (data && data.success === false) {
+            window.location.href = '/login.php?redirect=' + encodeURIComponent('/rms/');
+            return;
+        }
+    } catch (err) {
+        /* 断网 / 弱网：改用本机缓存的账号继续，保证状态操作仍能排队 */
+    }
+
+    if (!user) user = loadCachedUser();
+    if (!user) {
+        if (navigator.onLine === false) {
+            markOfflineNoSession();
+            return;
+        }
         window.location.href = '/login.php?redirect=' + encodeURIComponent('/rms/');
         return;
     }
-    currentUser = data.user;
+
+    currentUser = user;
+    if (serverResponded) cacheCurrentUser(user);
 
     initHeader(currentUser);
-    socket = io(window.Platform ? window.Platform.ioOptions() : { path: '/rms/socket.io' });
+    socket = (typeof io === 'function')
+        ? io(window.Platform ? window.Platform.ioOptions() : { path: '/rms/socket.io' })
+        : createInertSocket();
     
     // 收到警报时，写入公告栏而不弹窗
     initEmergencyListener(socket, (data) => {
@@ -309,6 +461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    renderCachedStatus();
     bindStatusButtons();
     bindEventModalControls();
     bindEmergencyLongPress();
@@ -770,6 +923,7 @@ function renderMyStatus(myData) {
 
     const statusNum = parseInt(myData.status, 10);
     isEmergencyActive = (statusNum === 5);
+    cacheStatusSnapshot(myData);
 
     if (myData.current_event_id && myData.event_title) {
         syncCurrentEventCard(myData.current_event_id, myData.event_title);
@@ -999,6 +1153,7 @@ function bindAddEventForm() {
                 }
             );
             if (result && result.queued) return;
+            if (result && result.failed) return;
             const resp = result && result.resp;
             if (resp && resp.duplicate) {
                 const ok = await showTmConfirm((resp.message || '检测到可能重复的事件') + '\n\n确定仍要提交吗？', {

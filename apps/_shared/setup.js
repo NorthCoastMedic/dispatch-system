@@ -129,15 +129,32 @@ function renderPage(csrf, error, values) {
 }
 
 function successPage() {
-    return '<!DOCTYPE html><meta charset="utf-8"><title>安装完成</title>'
-        + '<style>body{font-family:sans-serif;max-width:720px;margin:32px auto;padding:0 16px;color:#222}'
-        + 'h1{font-size:22px;margin:0 0 8px;color:#0056b3}'
-        + '.lead{color:#667;margin:0 0 24px;font-size:14px}'
-        + '.ok{background:#fff;border-radius:12px;padding:40px 28px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.06)}'
-        + '.ok h2{color:#0056b3}</style>'
-        + '<h1>首次安装</h1>'
-        + '<p class="lead">只需这一次。填组织名称、管理员和数据库，表由系统自动创建。完成后请重新运行 <code>npm start</code> 再登录。</p>'
-        + '<div class="ok"><h2>安装成功，请重新启动服务</h2><p>本窗口对应的进程即将退出。</p></div>';
+    return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">'
+        + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        + '<title>安装完成 · 统一组织系统</title><style>'
+        + ':root{--h:#0056b3;--h2:#004494;--bg:#dfe3e8;--panel:#fff;--panel2:#e9ecf0;--line:#b9c1ca;--line2:#c2c8d0;--txt:#1a1a1a;--txt2:#33475f;--muted:#6b7785}'
+        + '*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Microsoft YaHei","Noto Sans SC",sans-serif;font-size:14px}'
+        + '.topbar{background:var(--h);color:#fff;border-bottom:2px solid var(--h2)}'
+        + '.topbar-inner{max-width:900px;margin:0 auto;padding:10px 16px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}'
+        + '.topbar .brand{font-size:17px;font-weight:bold;letter-spacing:1px}'
+        + '.topbar .meta{font-size:12px;color:#dbe8f8}'
+        + '.wrap{max-width:900px;margin:0 auto;padding:14px 16px 40px}'
+        + '.notice{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--h);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--txt2);line-height:1.7}'
+        + '.notice code{background:var(--panel2);padding:1px 5px;font-size:12px}'
+        + '.ok{background:var(--panel);border:1px solid var(--line);border-top:3px solid #22a04a;padding:36px 24px;text-align:center}'
+        + '.ok h2{margin:0 0 10px;color:var(--h);font-size:18px}'
+        + '.ok p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.8}'
+        + '.ok code{background:var(--panel2);padding:1px 5px;font-size:12px}'
+        + '</style></head><body>'
+        + '<header class="topbar"><div class="topbar-inner">'
+        + '<div class="brand">统一组织系统</div><div class="meta">首次安装 · 已完成</div>'
+        + '</div></header>'
+        + '<div class="wrap">'
+        + '<div class="notice">数据表与配置已写入。本窗口对应的进程即将退出，请<strong>重新运行 <code>npm start</code></strong> 再用管理员账号登录。</div>'
+        + '<div class="ok"><h2>安装成功</h2>'
+        + '<p>重新启动服务后，用刚才设置的管理员账号登录。</p>'
+        + '<p>登录后可到「系统设置 → PWA」调整安装名称、主题色与图标。</p>'
+        + '</div></div></body></html>';
 }
 
 function trim(v) {

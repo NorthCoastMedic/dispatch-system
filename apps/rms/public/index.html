@@ -3,6 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0d3a6e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="响应终端">
+    <link rel="manifest" href="/platform/pwa/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/platform/pwa/apple-touch-icon.png">
     <title>成员响应终端</title>
     <script>
     (function () {
@@ -252,9 +259,10 @@
     <audio id="message-tone" src="/rms/sounds/event_tone.mp3" preload="auto"></audio>
 
     <script src="/platform/branding.js?v=20260814f"></script>
+    <script src="/platform/pwa/register.js?v=20260926a" defer></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="js/common.js?v=20260814w" defer></script>
-    <script src="js/offlineQueue.js?v=20260814a" defer></script>
-    <script src="js/member.js?v=20260814t" defer></script>
+    <script src="js/offlineQueue.js?v=20260926a" defer></script>
+    <script src="js/member.js?v=20260926a" defer></script>
 </body>
 </html>

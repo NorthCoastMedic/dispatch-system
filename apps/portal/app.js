@@ -58,9 +58,12 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 app.use(async (req, res, next) => {
     try {
-        res.locals.branding = await getBrandingAsync();
+        const settings = await loadSettings();
+        res.locals.branding = settings.branding || getBranding();
+        res.locals.pwa = settings.pwa || {};
     } catch (err) {
         res.locals.branding = getBranding();
+        res.locals.pwa = {};
     }
     next();
 });

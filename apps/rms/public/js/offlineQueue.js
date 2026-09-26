@@ -30,7 +30,10 @@
     function save(userId, list) {
         try {
             localStorage.setItem(storageKey(userId), JSON.stringify(list.slice(0, MAX_ITEMS)));
-        } catch (e) { /* quota / private mode */ }
+            return true;
+        } catch (e) {
+            return false; // 配额已满 / 隐私模式：写入失败要让调用方知道，否则会静默丢操作
+        }
     }
 
     function isOnline(socket) {
@@ -54,8 +57,8 @@
         if (row.priority === 'high') list.unshift(row);
         else list.push(row);
         if (list.length > MAX_ITEMS) list = list.slice(0, MAX_ITEMS);
-        save(userId, list);
-        return list.length;
+        // 返回入队后的条数；写入失败返回 -1，调用方需提示用户
+        return save(userId, list) ? list.length : -1;
     }
 
     function count(userId) {

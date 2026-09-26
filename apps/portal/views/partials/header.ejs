@@ -3,6 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="<%= (pwa && /^#[0-9a-fA-F]{6}$/.test(String(pwa.theme_color || ''))) ? pwa.theme_color : '#0056b3' %>">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="<%= branding.internal_platform_name %>">
+    <link rel="manifest" href="/platform/pwa/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/platform/pwa/apple-touch-icon.png">
     <title><%= branding.internal_platform_name %></title>
     <script>
     (function () {
@@ -21,6 +28,7 @@
     <link rel="stylesheet" href="/platform/theme.css?v=20260814a">
     <script src="/platform/platform.js?v=20260814s"></script>
     <script src="/platform/theme.js?v=20260814a" defer></script>
+    <script src="/platform/pwa/register.js?v=20260926a" defer></script>
     <style>
         .user-menu { position: relative; list-style: none; cursor: pointer; }
         .dropdown {

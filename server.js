@@ -87,6 +87,7 @@ async function startFull() {
     const { confirmLogRetentionChange } = require('./apps/_shared/terminalConfirm');
     const { getOrgPool, ensureSessionTables } = require('./apps/_shared/orgDb');
     const MysqlSessionStore = require('./apps/_shared/mysqlSessionStore');
+    const pwa = require('./apps/_shared/pwa');
     const { createApp: createPortal } = require('./apps/portal');
     const { createApp: createRms } = require('./apps/rms');
     const { createApp: createRtls } = require('./apps/rtls');
@@ -161,7 +162,16 @@ async function startFull() {
     rmsIo.engine.use(sessionMiddleware);
     rmsIo.engine.use(authTokens.middleware);
 
+    // 必须挂在 /platform 静态目录之前：manifest 由系统设置动态生成，否则会被静态文件抢先
+    pwa.mount(app);
     app.use('/platform', express.static(path.join(__dirname, 'apps', '_shared', 'public')));
+    pwa.ensureIcons().then((result) => {
+        if (result && result.built && result.built.length) {
+            console.log('[pwa] 已由 icon-source.png 生成图标:', result.built.join(', '));
+        }
+    }).catch((err) => {
+        console.warn('[pwa] 图标派生失败（保留现有图标）:', err && err.message ? err.message : err);
+    });
 
     app.get('/api/session', async (req, res) => {
         const user = ensureUnifiedSession(req);
