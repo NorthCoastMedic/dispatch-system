@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme-default="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="<%= (pwa && /^#[0-9a-fA-F]{6}$/.test(String(pwa.theme_color || ''))) ? pwa.theme_color : '#0056b3' %>">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="<%= branding.internal_platform_name %>">
+    <link rel="manifest" href="/platform/pwa/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/platform/pwa/apple-touch-icon.png">
+    <title><%= branding.internal_platform_name %></title>
+    <script>
+    (function () {
+        var k = 'rms_theme';
+        var d = document.documentElement.getAttribute('data-theme-default') || 'light';
+        try {
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', (t === 'light' || t === 'dark') ? t : d);
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', d);
+        }
+        document.documentElement.classList.add('platform-themed');
+    })();
+    </script>
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260829a">
+    <link rel="stylesheet" href="/platform/theme.css?v=20260814a">
+    <script src="/platform/platform.js?v=20260814s"></script>
+    <script src="/platform/theme.js?v=20260814a" defer></script>
+    <script src="/platform/pwa/register.js?v=20260926a" defer></script>
+    <style>
+        .user-menu { position: relative; list-style: none; cursor: pointer; }
+        .dropdown {
+            opacity: 0;
+            visibility: hidden;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--pt-panel, #fff);
+            border: 2px solid var(--pt-header-2, #004494);
+            border-radius: 0;
+            box-shadow: none;
+            padding: 4px 0;
+            margin-top: 0;
+            z-index: 1000;
+            min-width: 140px;
+        }
+        .user-menu:hover .dropdown { opacity: 1; visibility: visible; }
+        .dropdown.show { opacity: 1; visibility: visible; }
+        .dropdown li { list-style: none; }
+        .dropdown li a { display: block; padding: 8px 15px; color: var(--pt-text, #333); text-decoration: none; font-size: 14px; }
+        .dropdown li a:hover { background: var(--pt-hover, #f4f4f4); }
+        .dropdown li .logout-menu-btn {
+            display: block; width: 100%; text-align: left; padding: 8px 15px;
+            border: 0; background: none; color: var(--pt-text, #333); font-size: 14px;
+            cursor: pointer; font-family: inherit;
+        }
+        .dropdown li .logout-menu-btn:hover { background: var(--pt-hover, #f4f4f4); }
+        .user-name { user-select: none; }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .hnav-left { display: flex; align-items: center; gap: 20px; min-width: 0; flex-wrap: wrap; }
+        .hnav-status { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--pt-toolbar-text, #fff); white-space: nowrap; }
+        .hnav-status .clk { font-family: Consolas, "Courier New", monospace; font-size: 15px; font-weight: bold; color: var(--pt-toolbar-text, #fff); letter-spacing: 1px; }
+        .hnav-user { display: flex; align-items: center; gap: 18px; font-size: 13px; color: var(--pt-toolbar-text, #fff); white-space: nowrap; }
+        .hnav-user .uname { color: var(--pt-toolbar-text, #fff); }
+        .hnav-user a, .hnav-user .link-btn { color: var(--pt-toolbar-text, #fff); text-decoration: none; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; }
+        .hnav-user a:hover, .hnav-user .link-btn:hover { text-decoration: underline; }
+        .site-header .rms-theme-toggle { border: 0; background: none; border-radius: 0; padding: 0; min-height: 0; gap: 0; font: inherit; font-size: 13px; font-weight: normal; letter-spacing: 0; color: var(--pt-toolbar-text, #fff); }
+        .site-header .rms-theme-toggle:hover { filter: none; text-decoration: underline; }
+        .site-header .rms-theme-toggle-ico { display: none; }
+        @media (max-width: 900px) {
+            .nav-container { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 0; padding: 8px 12px; }
+            .hnav-left { flex: 1 1 100%; gap: 2px 0; }
+            .logo { flex: 1 1 100%; font-size: 18px; }
+            .hnav-status { flex: 1 1 100%; gap: 14px; font-size: 12px; }
+            .hnav-status .clk { font-size: 13px; letter-spacing: 0; }
+            .nav-links { flex: 1 1 100%; width: auto; justify-content: flex-start; gap: 16px; }
+            .hnav-user { gap: 16px; font-size: 12px; }
+            .nav-links a { background: none; border-radius: 0; padding: 0; text-align: left; font-size: 12px; }
+        }
+        @media (max-width: 400px) {
+            .hnav-status { gap: 10px; font-size: 11px; }
+            .hnav-status .clk { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <nav class="nav-container">
+            <div class="hnav-left">
+                <a href="dashboard.php" class="logo"><%= branding.internal_platform_name %></a>
+                <% if (typeof showClock !== 'undefined' && showClock) { %>
+                    <span class="hnav-status">
+                        <span id="wx">天气：定位中…</span>
+                        <span class="clk" id="clk">--:--:--</span>
+                        <span id="dt">----/--/--</span>
+                    </span>
+                <% } %>
+            </div>
+            <ul class="nav-links">
+                <li class="rms-theme-toggle-wrap" data-rms-theme-slot></li>
+                <% if (typeof user !== 'undefined' && user) { %>
+                    <li class="hnav-user">
+                        <span class="uname"><%= user.username || '队员' %><% if (user.role === 'admin') { %>（管理员）<% } %></span>
+                        <a href="/form_pass.php">修改密码</a>
+                        <form method="POST" action="/logout.php" style="margin:0;">
+                            <button type="submit" class="link-btn">退出</button>
+                        </form>
+                    </li>
+                <% } else { %>
+                    <li><a href="<%= branding.public_site_url %>" target="_blank" rel="noopener noreferrer"><%= branding.public_site_label %></a></li>
+                <% } %>
+            </ul>
+        </nav>
+    </header>
+    <script>
+        function toggleDropdown(event) {
+            event.stopPropagation();
+            var menu = document.getElementById("dropdownMenu");
+            if (menu) menu.classList.toggle("show");
+        }
+        function closeDropdowns() {
+            var menu = document.getElementById("dropdownMenu");
+            if (menu) menu.classList.remove('show');
+        }
+        window.addEventListener('click', closeDropdowns);
+        window.addEventListener('touchstart', function(event) {
+            var menu = document.getElementById("userMenu");
+            if (menu && !menu.contains(event.target)) closeDropdowns();
+        });
+    </script>

@@ -1,0 +1,201 @@
+<style>
+    .vp-page { background: #d9e4f4; }
+    .vp-wrap { max-width: 820px; margin: 0 auto 40px; padding: 0 12px; }
+    .vp-card { background: #e8eef8; border: 1px solid #b7c8e0; box-shadow: 0 6px 18px rgba(11,45,107,0.12); }
+    .vp-head { background: #0b2d6b; color: #fff; text-align: center; padding: 14px 16px 12px; }
+    .vp-head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 2px; }
+    .vp-head .en { margin: 4px 0 0; font-size: 11px; letter-spacing: 2px; opacity: 0.85; text-transform: uppercase; }
+    .vp-head .org { margin: 6px 0 0; font-size: 13px; letter-spacing: 1px; opacity: 0.95; }
+    .vp-idrow { display: flex; align-items: stretch; gap: 0; background: #f4f7fc; border-bottom: 1px solid #c5d4ea; }
+    .vp-photo {
+        flex: 0 0 auto;
+        width: 168px;
+        min-height: 168px;
+        background: #fff;
+        border-right: 1px solid #c5d4ea;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        box-sizing: border-box;
+    }
+    .vp-photo img {
+        max-width: 100%;
+        max-height: 220px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+    }
+    .vp-meta { flex: 1; min-width: 0; padding: 16px 20px; color: #0b2d6b; }
+    .vp-meta h3 { margin: 0 0 10px; font-size: 26px; letter-spacing: 1px; }
+    .vp-line { font-size: 15px; line-height: 1.55; margin: 0 0 2px; }
+    .vp-line strong { font-weight: 700; }
+    .vp-status { display: inline-block; margin-top: 8px; padding: 3px 8px; font-size: 13px; font-weight: 700; color: #fff; }
+    .vp-status.on { background: #1f7a3a; }
+    .vp-status.off { background: #b42318; }
+    .vp-certs { background: #fff; padding: 20px 20px 8px; }
+    .vp-sec { margin-bottom: 22px; }
+    .vp-sec h4 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #0b2d6b; color: #0b2d6b; font-size: 16px; }
+    .vp-list { list-style: none; padding: 0; margin: 0; }
+    .vp-cert {
+        border: 1px solid #d5deea;
+        border-left: 4px solid #0b2d6b;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        background: #f8fafc;
+    }
+    .vp-cert.ext { border-left-color: #1f7a3a; }
+    .vp-cert.is-open { cursor: pointer; }
+    .vp-cert.is-open:hover, .vp-cert.is-open:focus { background: #eef4ff; outline: 2px solid #0b2d6b; outline-offset: -2px; }
+    .vp-cert-name { font-weight: 700; color: #122; font-size: 16px; }
+    .vp-cert-meta { font-size: 13px; color: #667; margin-top: 6px; line-height: 1.45; }
+    .vp-cert-hint { margin-top: 8px; font-size: 12px; color: #0b2d6b; font-weight: 700; }
+    .vp-empty { color: #888; font-size: 14px; padding: 8px 0; }
+    .vp-sec:not(.is-expanded) .vp-cert.is-folded { display: none; }
+    .vp-more {
+        display: block;
+        width: 100%;
+        margin: 2px 0 6px;
+        padding: 10px 12px;
+        border: 1px solid #0b2d6b;
+        background: #fff;
+        color: #0b2d6b;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: 0;
+    }
+    .vp-more:hover { background: #0b2d6b; color: #fff; }
+    .vp-modal {
+        display: none; position: fixed; z-index: 9999; inset: 0;
+        background: rgba(6,16,40,0.88); align-items: center; justify-content: center; padding: 16px;
+        box-sizing: border-box;
+    }
+    .vp-modal img { max-width: min(96vw, 920px); max-height: 90vh; object-fit: contain; background: #111; }
+    .vp-modal-close { position: absolute; top: 12px; right: 18px; color: #fff; font-size: 36px; font-weight: 700; cursor: pointer; line-height: 1; }
+    @media (max-width: 640px) {
+        .vp-wrap { padding: 0 0 24px; }
+        .vp-idrow { flex-direction: column; }
+        .vp-photo {
+            width: 100%;
+            min-height: 0;
+            border-right: 0;
+            border-bottom: 1px solid #c5d4ea;
+            padding: 12px;
+        }
+        .vp-photo img { max-width: 100%; max-height: 280px; }
+        .vp-meta { padding: 16px; }
+        .vp-meta h3 { font-size: 22px; }
+        .vp-certs { padding: 16px 14px 6px; }
+        .vp-head h2 { font-size: 18px; }
+    }
+</style>
+<div class="vp-wrap">
+    <div class="vp-card">
+        <div class="vp-head">
+            <h2>队员档案</h2>
+            <p class="en">Personnel record</p>
+            <p class="org"><%= (typeof branding !== 'undefined' && branding && branding.internal_platform_name) ? branding.internal_platform_name : '' %></p>
+        </div>
+        <div class="vp-idrow">
+            <div class="vp-photo">
+                <img src="<%= avatarUrl %>" alt="队员照片">
+            </div>
+            <div class="vp-meta">
+                <h3><%= volunteer.name %></h3>
+                <p class="vp-line">编号　<strong><%= volunteer.badge_number || '—' %></strong></p>
+                <% if (typeof cardNo !== 'undefined' && cardNo) { %>
+                <p class="vp-line">证件号　<strong><%= cardNo %></strong></p>
+                <% } %>
+                <% if (volunteer.agency) { %>
+                <p class="vp-line">分区　<strong><%= volunteer.agency %></strong></p>
+                <% } %>
+                <p class="vp-line">血型　<strong><%= volunteer.blood_type || '未记录' %></strong></p>
+                <p class="vp-line">入队　<strong><%= volunteer.join_date || '未知' %></strong></p>
+                <span class="vp-status <%= volunteer.status === 'active' ? 'on' : 'off' %>">
+                    <%= volunteer.status === 'active' ? '在职' : '离队' %>
+                </span>
+            </div>
+        </div>
+        <div class="vp-certs">
+            <div class="vp-sec">
+                <h4>队内认证与资质证明</h4>
+                <ul class="vp-list">
+                    <% if (certsIn.length) { %>
+                        <% certsIn.forEach(function(c, i) { %>
+                        <li class="vp-cert<%= c.image_url ? ' is-open' : '' %><%= i >= 3 ? ' is-folded' : '' %>"<% if (c.image_url) { %> role="button" tabindex="0" data-cert-src="<%= c.cert_src %>"<% } %>>
+                            <div class="vp-cert-name"><%= c.cert_name %></div>
+                            <div class="vp-cert-meta">获得日期：<%= c.issue_date || '—' %></div>
+                            <% if (c.image_url) { %><div class="vp-cert-hint">点击查看凭证</div><% } %>
+                        </li>
+                        <% }) %>
+                    <% } else { %>
+                        <li class="vp-empty">暂无队内认证技能。</li>
+                    <% } %>
+                </ul>
+                <% if (certsIn.length > 3) { %>
+                <button type="button" class="vp-more" data-more="展开其余 <%= certsIn.length - 3 %> 项队内资质" data-less="收起队内资质">展开其余 <%= certsIn.length - 3 %> 项队内资质</button>
+                <% } %>
+            </div>
+            <div class="vp-sec">
+                <h4>通用执业资质</h4>
+                <ul class="vp-list">
+                    <% if (certsOut.length) { %>
+                        <% certsOut.forEach(function(c, i) { %>
+                        <li class="vp-cert ext<%= c.image_url ? ' is-open' : '' %><%= i >= 3 ? ' is-folded' : '' %>"<% if (c.image_url) { %> role="button" tabindex="0" data-cert-src="<%= c.cert_src %>"<% } %>>
+                            <div class="vp-cert-name"><%= c.cert_name %></div>
+                            <div class="vp-cert-meta">
+                                取得日期：<%= c.issue_date || '—' %>
+                                ｜ 有效期至：<span style="color:#b42318;font-weight:700;"><%= c.expiry_date || '—' %></span>
+                            </div>
+                            <% if (c.image_url) { %><div class="vp-cert-hint">点击查看凭证</div><% } %>
+                        </li>
+                        <% }) %>
+                    <% } else { %>
+                        <li class="vp-empty">暂无外部通用资质录入。</li>
+                    <% } %>
+                </ul>
+                <% if (certsOut.length > 3) { %>
+                <button type="button" class="vp-more" data-more="展开其余 <%= certsOut.length - 3 %> 项通用资质" data-less="收起通用资质">展开其余 <%= certsOut.length - 3 %> 项通用资质</button>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="imageModal" class="vp-modal" onclick="closeImageModal()">
+    <span class="vp-modal-close">&times;</span>
+    <img id="modalImage" alt="资质凭证" onclick="event.stopPropagation()">
+</div>
+<script>
+(function () {
+    function showImageModal(src) {
+        var modal = document.getElementById('imageModal');
+        var img = document.getElementById('modalImage');
+        img.src = src;
+        modal.style.display = 'flex';
+    }
+    window.closeImageModal = function () {
+        document.getElementById('imageModal').style.display = 'none';
+    };
+    document.querySelectorAll('.vp-more').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var sec = btn.closest('.vp-sec');
+            var on = sec.classList.toggle('is-expanded');
+            btn.textContent = on ? btn.getAttribute('data-less') : btn.getAttribute('data-more');
+        });
+    });
+    document.querySelectorAll('[data-cert-src]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            showImageModal(el.getAttribute('data-cert-src'));
+        });
+        el.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                showImageModal(el.getAttribute('data-cert-src'));
+            }
+        });
+    });
+})();
+</script>

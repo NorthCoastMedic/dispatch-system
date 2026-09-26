@@ -1,0 +1,110 @@
+<%- include('partials/header') %>
+<style>
+    .logs-wrap { flex:1; width:auto; max-width:1240px; margin:12px auto 16px; padding:0; box-sizing:border-box; background: var(--pt-panel, #fff); border:1px solid var(--pt-border-soft, #b9c1ca); }
+    .logs-hd { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 14px; background: var(--pt-panel-2, #e9ecf0); border-bottom:1px solid var(--pt-border-soft, #b9c1ca); }
+    .logs-hd h2 { margin:0; font-size:16px; letter-spacing:1px; color: var(--pt-text, #1f3a63); }
+    .logs-note { font-size:12px; color: var(--pt-muted, #64748b); }
+    .logs-hd .btn { padding:6px 14px; border:1px solid var(--pt-border-soft, #8a8a8a); border-radius:0; background: var(--pt-panel, #e9ecf0); color: var(--pt-accent, #1f3a63); font-size:13px; font-weight:700; text-decoration:none; }
+    .logs-hd .btn:hover { background: var(--pt-hover, #dbe4f0); }
+    .logs-tabs { display:flex; flex-wrap:wrap; gap:0; padding:0 10px; background: var(--pt-panel, #fff); border-bottom:1px solid var(--pt-border-soft, #b9c1ca); }
+    .logs-tabs a { padding:9px 15px; border:1px solid transparent; border-bottom:0; border-radius:0; text-decoration:none; font-size:13px; font-weight:700; color: var(--pt-text-2, #334); }
+    .logs-tabs a:hover { background: var(--pt-hover, #eef2f7); }
+    .logs-tabs a.active { background: var(--pt-header, #0056b3); color:#fff; border-color: var(--pt-header, #0056b3); }
+    .logs-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:10px 14px; background: var(--pt-panel-2, #f4f5f7); border-bottom:1px solid var(--pt-border-soft, #b9c1ca); }
+    .logs-filters input, .logs-filters select { padding:6px 9px; border:1px solid var(--pt-border-soft, #8a8a8a); border-radius:0; background: var(--pt-input-bg, #fff); color: var(--pt-text, #333); font-size:13px; font-family:inherit; }
+    .logs-filters button, .logs-filters a.btn { padding:6px 14px; border:1px solid var(--pt-header, #0056b3); border-radius:0; background: var(--pt-header, #0056b3); color:#fff; font-weight:700; font-size:13px; cursor:pointer; text-decoration:none; font-family:inherit; }
+    .logs-filters a.btn.ghost { background: var(--pt-panel, #e2e8f0); border-color: var(--pt-border-soft, #8a8a8a); color: var(--pt-text-2, #334); }
+    .table-responsive { overflow-x:auto; background: var(--pt-panel, #fff); }
+    table.logs { width:100%; border-collapse:collapse; min-width:760px; font-size:13px; }
+    table.logs th, table.logs td { padding:8px 10px; border:1px solid var(--pt-border, #d6dae0); text-align:left; vertical-align:top; color: var(--pt-text, #1a1a1a); }
+    table.logs th { background: var(--pt-panel-2, #e9ecf0); color: var(--pt-text, #2b3b52); white-space:nowrap; font-weight:700; }
+    .ok { color:#15803d; font-weight:700; }
+    .fail { color:#b91c1c; font-weight:700; }
+    .muted { color: var(--pt-muted, #94a3b8); word-break:break-all; }
+    .pager { display:flex; gap:12px; align-items:center; padding:10px 14px; font-size:13px; color: var(--pt-text-2, #334); border-top:1px solid var(--pt-border-soft, #b9c1ca); }
+    .pager a { color: var(--pt-accent, #0056b3); text-decoration:none; }
+    .pager a:hover { text-decoration:underline; }
+    @media (max-width:640px) {
+        .logs-wrap { max-width:none; margin:0; border-left:0; border-right:0; }
+        .logs-hd, .logs-filters { padding:9px 10px; }
+        .logs-filters input, .logs-filters select { flex:1; min-width:0; }
+        .logs-tabs { padding:0 4px; }
+        .logs-tabs a { padding:9px 11px; }
+        table.logs { font-size:12px; }
+        table.logs th, table.logs td { padding:7px 8px; }
+    }
+</style>
+<main class="logs-wrap">
+    <% var kind = typeof kind !== 'undefined' && kind ? kind : 'login'; %>
+    <div class="logs-hd">
+        <div>
+            <h2>操作日志</h2>
+        </div>
+        <a href="dashboard.php" class="btn ghost">返回导航页</a>
+    </div>
+    <nav class="logs-tabs">
+        <% (kinds || []).forEach(function (k) { %>
+        <a href="?kind=<%= encodeURIComponent(k.id) %>" class="<%= kind === k.id ? 'active' : '' %>"><%= k.label %></a>
+        <% }) %>
+    </nav>
+    <form class="logs-filters" method="GET">
+        <input type="hidden" name="kind" value="<%= kind %>">
+        <input type="text" name="q" value="<%= q %>" placeholder="搜索" maxlength="64">
+        <% if (kind === 'login') { %>
+        <select name="success">
+            <option value="" <%= success === '' ? 'selected' : '' %>>全部</option>
+            <option value="1" <%= success === '1' ? 'selected' : '' %>>成功</option>
+            <option value="0" <%= success === '0' ? 'selected' : '' %>>失败</option>
+        </select>
+        <% } %>
+        <button type="submit">筛选</button>
+        <a class="btn ghost" href="login_logs.php?kind=<%= encodeURIComponent(kind) %>">重置</a>
+        <span class="muted">共 <%= total %> 条</span>
+    </form>
+    <div class="table-responsive">
+        <table class="logs">
+            <tr>
+                <th>时间</th>
+                <% if (kind === 'login') { %><th>结果</th><% } %>
+                <th>操作者</th>
+                <th>摘要</th>
+                <th>分类</th>
+                <th>IP / 设备</th>
+                <% if (kind === 'settings' || kind === 'profile') { %><th>变更内容</th><% } %>
+            </tr>
+            <% (logs || []).forEach(function (row) { %>
+            <tr>
+                <td><%= row.created_at || '' %></td>
+                <% if (kind === 'login') { %>
+                <td class="<%= row.success ? 'ok' : 'fail' %>"><%= row.success ? '成功' : '失败' %></td>
+                <% } %>
+                <td><%= row.actor || row.username || '' %></td>
+                <td><%= row.summary || row.reason || '' %></td>
+                <td><%= row.extra || row.source || '' %></td>
+                <td>
+                    <div><%= row.ip || '' %></div>
+                    <% if (row.device) { %><div><%= row.device %></div><% } %>
+                    <% if (row.user_agent) { %><div class="muted"><%= row.user_agent %></div><% } %>
+                </td>
+                <% if (kind === 'settings' || kind === 'profile') { %>
+                <td><%= row.changeText || '' %></td>
+                <% } %>
+            </tr>
+            <% }) %>
+            <% if (!(logs || []).length) { %>
+            <tr><td colspan="<%= 6 + (kind === 'login' ? 1 : 0) + (kind === 'settings' || kind === 'profile' ? 1 : 0) %>" class="muted" style="text-align:center;">暂无记录</td></tr>
+            <% } %>
+        </table>
+    </div>
+    <% var pages = Math.max(1, Math.ceil(total / pageSize)); %>
+    <div class="pager">
+        <% if (page > 1) { %>
+        <a href="?kind=<%= encodeURIComponent(kind) %>&page=<%= page - 1 %>&success=<%= encodeURIComponent(success) %>&q=<%= encodeURIComponent(q) %>">上一页</a>
+        <% } %>
+        <span>第 <%= page %> / <%= pages %> 页</span>
+        <% if (page < pages) { %>
+        <a href="?kind=<%= encodeURIComponent(kind) %>&page=<%= page + 1 %>&success=<%= encodeURIComponent(success) %>&q=<%= encodeURIComponent(q) %>">下一页</a>
+        <% } %>
+    </div>
+</main>
+<%- include('partials/footer') %>

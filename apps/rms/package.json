@@ -1,0 +1,7 @@
+{
+  "name": "beian-rms",
+  "version": "1.0.0",
+  "description": "RMS module (mounted at /rms)",
+  "main": "index.js",
+  "private": true
+}

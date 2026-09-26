@@ -1,0 +1,8 @@
+{
+    "mqtt_broker": "example.com",
+    "mqtt_port": 1883,
+    "sensor_id": "1",
+    "baud_rate": 9600,
+    "app_title": "app_title",
+    "footer_text": "footer_text"
+}

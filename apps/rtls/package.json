@@ -1,0 +1,7 @@
+{
+  "name": "beian-rtls",
+  "version": "1.0.0",
+  "description": "RTLS module (mounted at /rtls)",
+  "main": "index.js",
+  "private": true
+}

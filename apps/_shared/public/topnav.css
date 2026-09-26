@@ -1,0 +1,88 @@
+/* 账号下拉内的平台导航 */
+.ptn-menu-block {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.ptn-menu-label {
+    padding: 8px 14px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+}
+.ptn-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    text-decoration: none;
+    line-height: 1.2;
+}
+.ptn-menu-item:hover {
+    background: #f1f5f9;
+}
+.ptn-menu-item.is-active {
+    color: #0056b3;
+    background: #e8f1fb;
+}
+.ptn-menu-now {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0056b3;
+}
+.ptn-menu-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 2px 0;
+}
+
+/* 指挥台深色下拉 */
+body.dispatch-console .ptn-menu-label {
+    color: #64748b;
+}
+body.dispatch-console .ptn-menu-item {
+    color: #e2e8f0;
+}
+body.dispatch-console .ptn-menu-item:hover {
+    background: rgba(148, 163, 184, 0.12);
+}
+body.dispatch-console .ptn-menu-item.is-active {
+    color: #7dd3fc;
+    background: rgba(56, 189, 248, 0.14);
+}
+body.dispatch-console .ptn-menu-now {
+    color: #7dd3fc;
+}
+body.dispatch-console .ptn-menu-divider {
+    background: rgba(148, 163, 184, 0.22);
+}
+
+/* RTLS/WBGT 顶栏仅「内部导航」时 */
+.top-nav .ptn,
+.nav-links .ptn {
+    display: contents;
+}
+
+#user-dropdown.ptn-dropdown {
+    min-width: 12rem;
+}
+
+/* 平台暗色：内部导航下拉 */
+html[data-theme="dark"] .ptn-menu-label { color: #7f8b9a; }
+html[data-theme="dark"] .ptn-menu-item { color: #e8eef6; }
+html[data-theme="dark"] .ptn-menu-item:hover { background: rgba(255,255,255,0.06); }
+html[data-theme="dark"] .ptn-menu-item.is-active {
+    color: #7db7ff;
+    background: rgba(0,86,179,0.22);
+}
+html[data-theme="dark"] .ptn-menu-now { color: #7db7ff; }
+html[data-theme="dark"] .ptn-menu-divider { background: #3d4f66; }
+html[data-theme="dark"] #user-dropdown.ptn-dropdown,
+html[data-theme="dark"] .ptn-dropdown {
+    background: #1c2738 !important;
+    border-color: #3d4f66 !important;
+    color: #e8eef6;
+}
